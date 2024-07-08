@@ -4,7 +4,7 @@
 
 PROJECT_NAME = enfify
 PYTHON_VERSION = 3.10
-PYTHON_INTERPRETER = python
+PYTHON_INTERPRETER = python3
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -77,4 +77,4 @@ endef
 export PRINT_HELP_PYSCRIPT
 
 help:
-	@python -c "${PRINT_HELP_PYSCRIPT}" < $(MAKEFILE_LIST)
+	@python3 -c "${PRINT_HELP_PYSCRIPT}" < $(MAKEFILE_LIST)
