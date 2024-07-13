@@ -1,3 +1,9 @@
+# temporary ignore
+test
+_*
+
+# ========================= end of my changes =========================
+
 # Data
 /data/
 
