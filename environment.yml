@@ -17,7 +17,11 @@ dependencies:
   - numpy
   - pandas
   - scikit-learn
+  - ffmpeg
   - pip:
     - python-dotenv
     - mkdocs
     - -e .
+    - neurodsp
+    - soundfile
+    - pydub
