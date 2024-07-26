@@ -4,6 +4,7 @@ from scipy.fft import fft
 import math
 from tqdm import tqdm
 from scipy.signal import hilbert
+from sklearn.metrics import roc_curve
 
 # Estimate frequency and phase with DFT⁰
 def phase_estimation_DFT0(s_tone, Fs, N_DFT):
@@ -102,7 +103,66 @@ def instantaneous_freq(signal, fs):
     inst_freq = (np.diff(inst_phase)/(2.0*np.pi) * fs)
     return inst_freq
 
+###..........................Feature Estimation.........................###
 
+def feature(phases):
+    phi_diff = np.diff(phases)
+    m_phi_diff = np.mean(phi_diff)
+    F = 100*np.log(np.mean((phi_diff-m_phi_diff)**2))
+    return F
 
+def segmented_phase_estimation_DFT0(s_in, f_s, num_cycles, N_DFT, nominal_enf):
+    step_size = int(f_s // nominal_enf)  # samples per nominal enf cycle
 
+    num_blocks = len(s_in) // step_size - (num_cycles - 1)
 
+    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
+
+    phases = []
+    for segment in segments:
+        _, phase = phase_estimation_DFT0(segment, f_s, N_DFT)
+        phases.append(phase)
+
+    phases = np.array(phases)
+    phases = np.unwrap(phases)
+    return phases
+
+def segmented_phase_estimation_DFT1(s_in, f_s, num_cycles, N_DFT, nominal_enf):
+    step_size = int(f_s // nominal_enf)  # samples per nominal enf cycle
+
+    num_blocks = len(s_in) // step_size - (num_cycles - 1)
+
+    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
+
+    phases = []
+    for segment in segments:
+        _, phase = phase_estimation_DFT1(segment, f_s, N_DFT)
+        phases.append(phase)
+
+    phases = np.array(phases)
+    #phases = np.unwrap(phases)
+    return phases
+
+###..........................Lambda.........................###
+
+def Lambda(uncut_F, cut_F):
+    num_samples = len(uncut_F)
+    labels = np.concatenate([np.zeros(num_samples), np.ones(num_samples)])
+    features = np.concatenate([uncut_F, cut_F])
+
+    # Calculate lambda
+    fpr, tpr, thresholds = roc_curve(labels, features)
+    eer_threshold = thresholds[np.nanargmin(np.absolute((1 - tpr) - fpr))]
+    return eer_threshold
+
+def lambda_accuracy(uncut_features, cut_features, Lambda):
+
+    n_cut = len(cut_features)
+    n_uncut = len(uncut_features)
+
+    p_cut = np.sum(cut_features >= Lambda) / n_cut
+    p_uncut = np.sum(uncut_features < Lambda) / n_uncut
+
+    p_characterization = (p_cut * n_cut + p_uncut * n_uncut) / (n_cut + n_uncut)
+
+    return p_characterization

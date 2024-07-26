@@ -22,6 +22,5 @@ dependencies:
     - python-dotenv
     - mkdocs
     - -e .
-    - neurodsp
     - soundfile
     - pydub
