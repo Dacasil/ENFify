@@ -1,16 +1,14 @@
 import numpy as np
 import scipy.signal as signal
-from scipy.io import wavfile
-import matplotlib.pyplot as plt
-from scipy.signal import hilbert
 import random
 from scipy.stats import beta
 import math
+import os
 
 
 ###.................Downsampling and bandpass filter.................###
 
-def downsampling(s_raw, f_s, f_ds=1_000):
+def downsampling_python(s_raw, f_s, f_ds=1_000):
     if f_s % f_ds == 0:
         downsample_factor = f_s // f_ds
         s_ds = signal.decimate(s_raw, downsample_factor)
@@ -25,9 +23,37 @@ def downsampling(s_raw, f_s, f_ds=1_000):
         print("Not sufficient good implemented yet")
     return s_ds
 
-def bandpass_filter(sig,lowcut, highcut,fs, order):
-    sos = signal.butter(order, [lowcut, highcut], btype='band', fs = fs, output = 'sos' )
-    bandpass_sig = signal.sosfiltfilt(sos, sig)
+def list_files_in_directory(directory):
+    try:
+        # List all files in the directory
+        files = os.listdir(directory)
+        # Filter out directories, only keep files
+        raw_files = [f for f in files if os.path.isfile(os.path.join(directory, f))]
+        down_files = []
+        files = []
+
+        for raw in raw_files:
+            down_file = directory + '/down_'+raw
+            down_files.append(down_file)
+        
+        for raw in raw_files:
+            files.append(directory + '/' + raw)
+
+        return files, down_files
+
+    except FileNotFoundError:
+        return f"The directory {directory} does not exist."
+    except PermissionError:
+        return f"Permission denied to access {directory}."
+
+
+def downsampling(input_file, output_file, fs_down):
+    os.system(f'. /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify; ffmpeg -i {input_file} -ar {fs_down} {output_file}')
+
+
+def bandpass_filter(sig,lowcut, highcut, fs, order):
+    sos = signal.butter(order, [lowcut, highcut], btype='bandpass', output = 'sos', fs = fs )
+    bandpass_sig = signal.sosfilt(sos, sig)
     return bandpass_sig
 
 ###.................Generate tone and cut tone..................###
