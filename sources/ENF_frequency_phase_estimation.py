@@ -3,11 +3,11 @@ from scipy.signal import get_window
 import scipy.signal as signal
 from scipy.fft import fft
 import math
-from tqdm import tqdm
 from scipy.signal import hilbert
-from sklearn.metrics import roc_curve
 
-# Estimate frequency and phase with DFT⁰
+
+
+# Estimate frequency and phase with DFT⁰ ((Rodriguez Paper)
 def phase_estimation_DFT0(s_tone, Fs, N_DFT):
 
     window_type = 'hann'
@@ -32,12 +32,13 @@ def phase_estimation_DFT0(s_tone, Fs, N_DFT):
     return f0_estimated, phi0_estimated
 
 
-def phase_estimation_DFT1(s_tone, Fs, N_DFT):
+# Estimate frequency with DFT¹ instantaneous estimation (Rodriguez Paper)
+def freq_estimation_DFT1(s_tone, Fs, N_DFT):
 
     ###......Estimate the frequency......###
     window_type = 'hann'
     M = len(s_tone)
-    s_tone_unmodified = s_tone
+    
     # Get the window type
     window = get_window(window_type, M-1)
     
@@ -66,17 +67,41 @@ def phase_estimation_DFT1(s_tone, Fs, N_DFT):
     F_kmax = (np.pi * k_max) / (N_DFT * np.sin(np.pi * k_max/ N_DFT))
     f0_estimated = (F_kmax * abs_X_diff[k_max]) / (2 * np.pi * abs_X[k_max])
 
-    print(f0_estimated)
-
-    # Validate the frequency result
+     # Validate the frequency result
     k_DFT = (N_DFT * f0_estimated) / Fs
     try:
         k_DFT >= (k_max - 0.5) and k_DFT < (k_max + 0.5)
     except ValueError: print("estimated frequency is not valid")
 
-    ###......Estimate the phase......###
-    # Calculate phase with DFT⁰ method to compare the values
-    _, phi_DFT0 = phase_estimation_DFT0(s_tone_unmodified, Fs, N_DFT)
+    return f0_estimated
+
+
+# Estimate phase with DFT¹ instantaneous estimation (Rodriguez Paper)
+def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated):
+
+    ###......Estimate the frequency......###
+    window_type = 'hann'
+    M = len(s_tone)
+
+    # Get the window type
+    window = get_window(window_type, M-1)
+    
+    # Calculate the approx. first derivative of single tone
+    s_tone_diff = Fs * np.diff(s_tone)
+
+    # Windowing
+    s_tone_diff_windowed = s_tone_diff * window
+
+    # Zero-Padding of the signal
+    s_tone_padded_diff = np.pad(s_tone_diff_windowed, (0, N_DFT - M), 'constant')
+
+    # Calculate the DFT
+    X_diff = fft(s_tone_padded_diff,n=N_DFT)
+
+    k_DFT = (N_DFT * f0_estimated) / Fs
+
+     # Validate the frequency result
+    _, phi_DFT0 = phase_estimation_DFT0(s_tone, Fs, N_DFT) # Calculate phase with DFT⁰ method to compare the values
 
     omega_0 = 2*np.pi*f0_estimated/Fs
     k_low = math.floor(k_DFT)
@@ -99,10 +124,12 @@ def phase_estimation_DFT1(s_tone, Fs, N_DFT):
     else:
         phi = phi_2
 
-    return f0_estimated, phi
+    return phi
 
 
+###..... Estimate the instantaneous frequency of a tone in 
 def segmented_freq_estimation_DFT0(s_in, f_s, num_cycles, N_DFT, nominal_enf):
+
     step_size = int(f_s // nominal_enf)  # samples per nominal enf cycle
 
     num_blocks = len(s_in) // step_size - (num_cycles - 1)
@@ -128,7 +155,7 @@ def segmented_freq_estimation_DFT1(s_in, f_s, num_cycles, N_DFT, nominal_enf):
 
     freqs = []
     for i in range(len(segments)):
-        freq,_ = phase_estimation_DFT1(segments[i], f_s, N_DFT)
+        freq = freq_estimation_DFT1(segments[i], f_s, N_DFT)
         freqs.append(freq)
 
     freqs = np.array(freqs)
@@ -178,6 +205,33 @@ def hilbert_instantaneous_freq(signal, fs):
     inst_freq = np.append(inst_freq, inst_freq[-1]) # Diff reduces the number of results by 1 -> dulicate the last frequency
     return inst_freq
 
+# Hilbert instantaneous phase estimation
+def hilbert_instantaneous_phase(signal):
+    analytic_sig = hilbert(signal)
+    inst_phase  = np.unwrap(np.angle(analytic_sig))
+    return inst_phase
+
+# Hilbert segmented phase estimation
+def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
+
+    step_size = int(f_s // nominal_enf)
+
+    num_blocks = len(s_in) // step_size - (num_cycles - 1)
+
+    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
+
+    phases = []
+    for i in range(len(segments)):
+        phase = hilbert_instantaneous_phase(segments[i])
+        phase = np.mean(phase)
+        phases.append(phase)
+    
+    phases = np.unwrap(phases)
+    phases = np.array(phases)
+    
+    return phases
+
+# Instantaneous phase estimation via scipy
 def scipy_IF_estimation(sig, fs):
 
     nperseg = 10 *fs
@@ -185,3 +239,4 @@ def scipy_IF_estimation(sig, fs):
     peak_freqs = [freqs[idx] for t in range(len(times)) if (idx := np.argmax(stft[:,t]))] # Extract peak for each point in time
 
     return peak_freqs
+

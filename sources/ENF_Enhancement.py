@@ -6,7 +6,7 @@ import cmath
 from scipy.signal import get_window
 from scipy.fft import fft
 import sys
-sys.path.insert(0, '/home/leo_dacasi/Dokumente/summerofcode/ENFify/sources')
+sys.path.insert(0, '../sources')
 from ENF_frequency_phase_estimation import phase_estimation_DFT0, phase_estimation_DFT1, segmented_freq_estimation_DFT1
 
 ###...........................RFA................................###

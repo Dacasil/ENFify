@@ -23,28 +23,28 @@ def downsampling_python(s_raw, f_s, f_ds=1_000):
         print("Not sufficient good implemented yet")
     return s_ds
 
-def list_files_in_directory(directory):
+def list_files_in_directory(input_dir, output_dir):
     try:
         # List all files in the directory
-        files = os.listdir(directory)
+        files = os.listdir(input_dir)
         # Filter out directories, only keep files
-        raw_files = [f for f in files if os.path.isfile(os.path.join(directory, f))]
+        raw_files = [f for f in files if os.path.isfile(os.path.join(input_dir, f))]
         down_files = []
         files = []
 
         for raw in raw_files:
-            down_file = directory + '/down_'+raw
+            down_file = output_dir + '/down_'+raw
             down_files.append(down_file)
         
         for raw in raw_files:
-            files.append(directory + '/' + raw)
+            files.append(input_dir + '/' + raw)
 
         return files, down_files
 
     except FileNotFoundError:
-        return f"The directory {directory} does not exist."
+        return f"The directory {input_dir} does not exist."
     except PermissionError:
-        return f"Permission denied to access {directory}."
+        return f"Permission denied to access {input_dir}."
 
 
 def downsampling(input_file, output_file, fs_down):
@@ -53,7 +53,7 @@ def downsampling(input_file, output_file, fs_down):
 
 def bandpass_filter(sig,lowcut, highcut, fs, order):
     sos = signal.butter(order, [lowcut, highcut], btype='bandpass', output = 'sos', fs = fs )
-    bandpass_sig = signal.sosfilt(sos, sig)
+    bandpass_sig = signal.sosfiltfilt(sos, sig)
     return bandpass_sig
 
 ###.................Generate tone and cut tone..................###

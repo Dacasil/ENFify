@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.metrics import roc_curve
+from scipy import stats
 
 
 ###..........................Feature Estimation.........................###
@@ -33,3 +34,17 @@ def lambda_accuracy(uncut_features, cut_features, Lambda):
     p_characterization = (p_cut * n_cut + p_uncut * n_uncut) / (n_cut + n_uncut)
 
     return p_characterization
+
+def find_cut_in_phases(phases, x):
+    second_der = np.gradient(np.gradient(phases,x), x)
+  
+    z_scores = np.abs(stats.zscore(second_der))
+    ausreisser = np.where(z_scores > 3)
+
+    if len(ausreisser) == 0:
+        return phases, x, ausreisser
+
+    phases_new = phases[int(np.min(ausreisser))-200 : int(np.max(ausreisser))+200]
+    x_new = x[int(np.min(ausreisser))-200 : int(np.max(ausreisser))+200]
+
+    return phases_new, x_new, ausreisser
