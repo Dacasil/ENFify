@@ -1,9 +1,13 @@
-# temporary ignore
+# OUR GITIGNORE LINES
 test
-_*
+# _*
 lab*
+*.pdf
+*.mp3
+*.wav
+*.png
 
-# ========================= end of my changes =========================
+# FROM HERE ON GITIGNORE FROM COOKIECUTTER
 
 # Data
 /data/
