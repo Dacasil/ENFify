@@ -1,10 +1,9 @@
 import numpy as np
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import argparse
 
 import os
-
 
 try:
     from ENF_Enhancement import VariationalModeDecomposition
@@ -41,11 +40,7 @@ except ImportError as e:
     print(f"Import Error: {e}")
 
 
-# ______________________________Main Code______________________________#
-
-
-def main():
-    # Create the parser for the CLI
+def parse_arguments():
     parser = argparse.ArgumentParser(description="ENFify - Audio Tampering Detection Tool")
     # Add arguments
     parser.add_argument("Audio_file_path", type=str, help="The path of the audio file to process.")
@@ -60,23 +55,10 @@ def main():
     parser.add_argument(
         "--VMD", action="store_true", help="Enable Variational Mode Decomposition."
     )
-    # Parse the arguments
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    # Access the arguments
-    print(f"Processing file: {args.Audio_file_path}")
-    if args.downsampling:
-        print("Downsampling is enabled")
-    if args.bandpassfilter:
-        print("Bandpassfilter is enabled")
-    if args.VMD:
-        print("Variational Mode Decomposition is enabled")
 
-    # ..................Read in the raw data..................#
-    sig, fs = read_wavfile(args.Audio_file_path)
-
-    # ...................Data Preprocessing...................#
-
+def data_preprocessing(sig, fs, args):
     # Downsampling
     if args.downsampling:
 
@@ -132,10 +114,12 @@ def main():
             u_clean, _, _ = VariationalModeDecomposition(sig, alpha, tau, n_mode, DC, tol)
             sig = u_clean[0]
 
-    # Robust filtering algorithm (In progress)
+    # TODO: Robust filtering algorithm (In progress)
 
-    # .....................Phase analysis.....................#
+    return sig, fs
 
+
+def analyze_phase(sig, fs):
     # Set the Constants
     ref_enf = float(input("Expected ENF in Hz"))
     NUM_CYCLES = 10
@@ -155,6 +139,7 @@ def main():
     )
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(DFT0_phases, x_DFT0)
 
+    # Create the phase plots
     image_path = "OUTPUT_Audio_Data"
     hilbert_phase_im = "hilbert_phase_im.png"
     DFT0_phase_im = "DFT0_phase_im.png"
@@ -178,27 +163,28 @@ def main():
 
     cut_to_alpha_pdf(image_path + "/" + hilbert_phase_im, image_path + "/" + DFT0_phase_im)
 
-    """
-    plt.plot(x_hilbert_new, np.degrees(hilbert_phases))
-    plt.xlabel("Time in seconds")
-    plt.ylabel("Phase (degrees)")
-    plt.title("Phase vs Time")
-    plt.axvline(x=x_hilbert[int(np.min(hil_interest_region))]-1, color='red', linestyle='--')
-    plt.axvline(x=x_hilbert[int(np.max(hil_interest_region))]+1, color='red', linestyle='--')
-    plt.grid(True)
-    plt.savefig(image_path + '/' + hilbert_phase_im)
-    plt.close()
 
-    plt.plot(x_DFT0_new, np.degrees(DFT0_phases))
-    plt.xlabel("Time in seconds")
-    plt.ylabel("Phase (degrees)")
-    plt.title("Phase vs Time")
-    plt.axvline(x=x_DFT0[int(np.min(DFT0_interest_region))]-1, color='red', linestyle='--')
-    plt.axvline(x=x_DFT0[int(np.max(DFT0_interest_region))]+1, color='red', linestyle='--')
-    plt.grid(True)
-    plt.savefig(image_path + '/' + DFT0_phase_im)
-    plt.close()
-    """
+def main():
+    # Parse the arguments
+    args = parse_arguments()
+
+    # Logging
+    print(f"Processing file: {args.Audio_file_path}")
+    if args.downsampling:
+        print("Downsampling is enabled")
+    if args.bandpassfilter:
+        print("Bandpassfilter is enabled")
+    if args.VMD:
+        print("Variational Mode Decomposition is enabled")
+
+    # Read data
+    sig, fs = read_wavfile(args.Audio_file_path)
+
+    # Data Preprocessing
+    sig, fs = data_preprocessing(sig, fs, args)
+
+    # Phase Analysis
+    analyze_phase(sig, fs)
 
 
 if __name__ == "__main__":
