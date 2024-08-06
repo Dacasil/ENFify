@@ -48,7 +48,7 @@ def main():
     # Create the parser for the CLI
     parser = argparse.ArgumentParser(description="ENFify - Audio Tampering Detection Tool")
     # Add arguments
-    parser.add_argument("Audio_file_name", type=str, help="The name of the audio file to process.")
+    parser.add_argument("Audio_file_path", type=str, help="The path of the audio file to process.")
     parser.add_argument(
         "--downsampling", action="store_true", help="Enable downsampling of the audio file."
     )
@@ -64,7 +64,7 @@ def main():
     args = parser.parse_args()
 
     # Access the arguments
-    print(f"Processing file: {args.Audio_file_name}")
+    print(f"Processing file: {args.Audio_file_path}")
     if args.downsampling:
         print("Downsampling is enabled")
     if args.bandpassfilter:
@@ -73,7 +73,7 @@ def main():
         print("Variational Mode Decomposition is enabled")
 
     # ..................Read in the raw data..................#
-    sig, fs = read_wavfile(f"INPUT_Audio_Data/{args.Audio_file_name}")
+    sig, fs = read_wavfile(args.Audio_file_path)
 
     # ...................Data Preprocessing...................#
 
@@ -84,9 +84,10 @@ def main():
         downsample_freq = float(input("Set the downsample frequency: "))
 
         # File paths to get the raw and save the downsampled data
-        input_file = os.path.join("INPUT_Audio_Data", args.Audio_file_name)
+        input_file = os.path.join(args.Audio_file_path)
         output_file = os.path.join(
-            "INPUT_Audio_Data/downsampled", "downsampled_" + args.Audio_file_name
+            os.path.dirname(args.Audio_file_path),
+            "downsampled_" + os.path.basename(args.Audio_file_path),
         )
 
         # Downsample the signal data to 1000 Hz for lighter numeric calculations
