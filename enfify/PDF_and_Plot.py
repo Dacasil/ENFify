@@ -116,29 +116,22 @@ def read_wavfile(file_path):
     Returns:
         _type_: _description_
     """
-    try:
-        # Read the WAV file
-        fs, data = wavfile.read(file_path)
+    # Read the WAV file
+    fs, data = wavfile.read(file_path)
 
-        # Check the number of channels
-        if len(data.shape) == 1:
+    # Check the number of channels
+    if len(data.shape) == 1:
+        return data, fs
+
+    elif len(data.shape) == 2:
+        channels = data.shape[1]
+        if channels == 2:
+            data = np.mean(data, axis=1)
             return data, fs
-
-        elif len(data.shape) == 2:
-            channels = data.shape[1]
-            if channels == 2:
-                data = np.mean(data, axis=1)
-                return data, fs
-            else:
-                return f"The file has {channels} channels, which is unusual."
         else:
-            return "The structure of the audio data is unexpected."
-    except ValueError as e:
-        return print(f"Error reading the audio file: {e}")
-    except FileNotFoundError:
-        return print("Error: The file was not found")
-    except Exception as e:
-        return print(f"An unexpected error occurred: {e}")
+            raise Exception(f"The file has {channels} channels, which is unusual.")
+    else:
+        raise Exception("The structure of the audio data is unexpected.")
 
 
 def create_cut_phase_plot(x_new, phases_new, x_old, region_of_interest, path, name):

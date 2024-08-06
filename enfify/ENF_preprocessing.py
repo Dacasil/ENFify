@@ -52,27 +52,21 @@ def list_files_in_directory(input_dir, output_dir):
     Returns:
         _type_: _description_
     """
-    try:
-        # List all files in the directory
-        files = os.listdir(input_dir)
-        # Filter out directories, only keep files
-        raw_files = [f for f in files if os.path.isfile(os.path.join(input_dir, f))]
-        down_files = []
-        files = []
+    # List all files in the directory
+    files = os.listdir(input_dir)
+    # Filter out directories, only keep files
+    raw_files = [f for f in files if os.path.isfile(os.path.join(input_dir, f))]
+    down_files = []
+    files = []
 
-        for raw in raw_files:
-            down_file = output_dir + "/down_" + raw
-            down_files.append(down_file)
+    for raw in raw_files:
+        down_file = output_dir + "/down_" + raw
+        down_files.append(down_file)
 
-        for raw in raw_files:
-            files.append(input_dir + "/" + raw)
+    for raw in raw_files:
+        files.append(input_dir + "/" + raw)
 
-        return files, down_files
-
-    except FileNotFoundError:
-        return f"The directory {input_dir} does not exist."
-    except PermissionError:
-        return f"Permission denied to access {input_dir}."
+    return files, down_files
 
 
 def downsampling(input_file, output_file, fs_down):
