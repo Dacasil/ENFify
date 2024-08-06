@@ -3,8 +3,6 @@ import numpy as np
 # import matplotlib.pyplot as plt
 import argparse
 
-# import sys
-# sys.path.insert(0, os.path.abspath("../sources"))
 import os
 
 
