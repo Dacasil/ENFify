@@ -56,7 +56,7 @@ def freq_estimation_DFT1(s_tone, Fs, N_DFT):
         _type_: _description_
     """
 
-    ###......Estimate the frequency......###
+    # ......Estimate the frequency......#
     window_type = "hann"
     M = len(s_tone)
 
@@ -112,7 +112,7 @@ def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated):
         _type_: _description_
     """
 
-    ###......Estimate the frequency......###
+    # ......Estimate the frequency......#
     window_type = "hann"
     M = len(s_tone)
 
@@ -162,7 +162,7 @@ def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated):
     return phi
 
 
-###..... Estimate the instantaneous frequency of a tone in
+# ..... Estimate the instantaneous frequency of a tone in
 def segmented_freq_estimation_DFT0(s_in, f_s, num_cycles, N_DFT, nominal_enf):
     """_summary_
 

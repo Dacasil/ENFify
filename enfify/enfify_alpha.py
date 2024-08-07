@@ -1,137 +1,116 @@
 import numpy as np
-
-import matplotlib.pyplot as plt
-import argparse
-
 import os
-
-try:
-    from ENF_Enhancement import VariationalModeDecomposition
-except ImportError as e:
-    print(f"Import Error: {e}")
-
-try:
-    from PDF_and_Plot import (
-        cut_to_alpha_pdf,
-        to_alpha_pdf,
-        read_wavfile,
-        create_phase_plot,
-        create_cut_phase_plot,
-    )
-except ImportError as e:
-    print(f"Import Error: {e}")
-
-try:
-    from ENF_preprocessing import downsampling, bandpass_filter
-except ImportError as e:
-    print(f"Import Error: {e}")
-
-try:
-    from ENF_frequency_phase_estimation import (
-        segmented_phase_estimation_DFT0,
-        segmented_phase_estimation_hilbert,
-    )
-except ImportError as e:
-    print(f"Import Error: {e}")
-
-try:
-    from Rodriguez_Audio_Authenticity import find_cut_in_phases
-except ImportError as e:
-    print(f"Import Error: {e}")
+import typer
+import yaml
+from ENF_Enhancement import VariationalModeDecomposition
+from PDF_and_Plot import (
+    cut_to_alpha_pdf,
+    to_alpha_pdf,
+    read_wavfile,
+    create_phase_plot,
+    create_cut_phase_plot,
+)
+from ENF_preprocessing import downsampling, bandpass_filter
+from ENF_frequency_phase_estimation import (
+    segmented_phase_estimation_DFT0,
+    segmented_phase_estimation_hilbert,
+)
+from Rodriguez_Audio_Authenticity import find_cut_in_phases
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="ENFify - Audio Tampering Detection Tool")
-    # Add arguments
-    parser.add_argument("Audio_file_path", type=str, help="The path of the audio file to process.")
-    parser.add_argument(
-        "--downsampling", action="store_true", help="Enable downsampling of the audio file."
-    )
-    parser.add_argument(
-        "--bandpassfilter",
-        action="store_true",
-        help="Enable bandpass filtering on the audio file.",
-    )
-    parser.add_argument(
-        "--VMD", action="store_true", help="Enable Variational Mode Decomposition."
-    )
-    return parser.parse_args()
+# CONSTANTS
+app = typer.Typer()
+
+# Load defaults
+with open("defaults.yml", "r") as f:
+    DEFAULTS = yaml.safe_load(f)
 
 
-def data_preprocessing(sig, fs, args):
+# FUNCTIONS
+@app.command()
+def process_audio(
+    audio_file_path: str = typer.Argument(
+        "/home/leo/enfify/data/scratch/silva_data/INPUT_Audio_Data/cut_min_001_ref.wav",
+        help="The path of the audio file to process.",
+    ),
+    config_path: str = typer.Option(
+        "config.yml", help="The path of the configuration file to use."
+    ),
+):
+    """
+    ENFify - Audio Tampering Detection Tool
+
+    Args:
+    audio_file_path: The path of the audio file to process.
+    config_file_path: The path to the config file.
+    """
+
+    print(f"Processing audio file: {audio_file_path}")
+
+    # Load config
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f) or {}
+
+    # add defaults
+    for key, value in DEFAULTS.items():
+        if key not in config:
+            config[key] = value
+
+    # Read data
+    sig, fs = read_wavfile(audio_file_path)
+
+    # Data Preprocessing
+    sig, fs = data_preprocessing(sig, fs, audio_file_path, config)
+
+    # Phase Analysis
+    analyze_phase(sig, fs, config)
+
+
+def data_preprocessing(sig, fs, audio_file_path, config):
     # Downsampling
-    if args.downsampling:
-
-        # Select the downsample frequency
-        downsample_freq = float(input("Set the downsample frequency: "))
-
-        # File paths to get the raw and save the downsampled data
-        input_file = os.path.join(args.Audio_file_path)
+    if config["downsample"]:
+        downsample_freq = config["downsampling_freq"]
         output_file = os.path.join(
-            os.path.dirname(args.Audio_file_path),
-            "downsampled_" + os.path.basename(args.Audio_file_path),
+            os.path.dirname(audio_file_path),
+            "downsampled_" + os.path.basename(audio_file_path),
         )
-
-        # Downsample the signal data to 1000 Hz for lighter numeric calculations
-        downsampling(input_file, output_file, downsample_freq)
+        downsampling(audio_file_path, output_file, downsample_freq)
         sig, fs = read_wavfile(output_file)
-
-        # Remove the downsampled data to enable programm
         os.remove(output_file)
 
     # Bandpass Filter
-    if args.bandpassfilter:
-
-        # Select the bandpass frequencies
-        lowcut = float(input("Set the bandpass minimum frequency: "))
-        high_cut = float(input("Set the bandpass maximum frequency: "))
-
-        # Apply bandpass filter on the signal
-        sig = bandpass_filter(sig, lowcut, high_cut, fs, 4)
+    if config["bandpassfilter"]:
+        lowcut = config["bandpass_lowcut"]
+        highcut = config["bandpass_highcut"]
+        sig = bandpass_filter(sig, lowcut, highcut, fs, 4)
 
     # Variational Mode Decomposition
-    if args.VMD:
-        vmd_settings = input(
-            "Continue with default VMD settings press \x1B[0m\x1B[3m Enter \x1B[0m  or type \x1B[3m True \x1B[0m to set new VMD settings:"
-        )
+    if config["VMD"]:
+        vmd_params = config["VMD_params"]
+        alpha = vmd_params["alpha"]
+        tau = vmd_params["tau"]
+        n_mode = vmd_params["n_mode"]
+        DC = vmd_params["DC"]
+        tol = vmd_params["tol"]
 
-        if vmd_settings:
-            alpha = float(input("Bandwith constraint alpha:"))
-            tau = float(input("Noise-tolerance tau:"))
-            n_mode = float(input("Number of modes:"))
-            DC = str(input("Impose DC part"))
-            tol = str(input("Error tolerance:"))
-
-            u_clean, _, _ = VariationalModeDecomposition(sig, alpha, tau, n_mode, DC, tol)
-            sig = u_clean[0]
-
-        else:
-            alpha = 5000  # moderate bandwidth constraint
-            tau = 0  # noise-tolerance
-            n_mode = 1  # Number of espected modes in the signal
-            DC = 0  # no DC part imposed
-            tol = 1e-7
-            u_clean, _, _ = VariationalModeDecomposition(sig, alpha, tau, n_mode, DC, tol)
-            sig = u_clean[0]
-
-    # TODO: Robust filtering algorithm (In progress)
+        u_clean, _, _ = VariationalModeDecomposition(sig, alpha, tau, n_mode, DC, tol)
+        sig = u_clean[0]
 
     return sig, fs
 
 
-def analyze_phase(sig, fs):
-    # Set the Constants
-    ref_enf = float(input("Expected ENF in Hz"))
-    NUM_CYCLES = 10
-    N_DFT = 20_000
-    time = len(sig) / fs  # time
+def analyze_phase(sig, fs, config):
+    nom_enf = config["expected_enf"]
+    NUM_CYCLES = config["num_cycles"]
+    N_DFT = config["n_dft"]
+    time = len(sig) / fs
 
-    # Hilbert instantaneous phase estimateion
-    hilbert_phases = segmented_phase_estimation_hilbert(sig, fs, NUM_CYCLES, ref_enf)
+    # Hilbert instantaneous phase estimation
+    hilbert_phases = segmented_phase_estimation_hilbert(sig, fs, NUM_CYCLES, nom_enf)
     x_hilbert = np.linspace(0.0, time, len(hilbert_phases))
 
     # DFT0 instantaneous phase estimation
-    DFT0_phases = segmented_phase_estimation_DFT0(sig, fs, NUM_CYCLES, N_DFT, ref_enf)
+    DFT0_phases = segmented_phase_estimation_DFT0(sig, fs, NUM_CYCLES, N_DFT, nom_enf)
     x_DFT0 = np.linspace(0.0, time, len(DFT0_phases))
 
     hilbert_phases_new, x_hilbert_new, hil_interest_region = find_cut_in_phases(
@@ -140,52 +119,34 @@ def analyze_phase(sig, fs):
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(DFT0_phases, x_DFT0)
 
     # Create the phase plots
-    image_path = "OUTPUT_Audio_Data"
-    hilbert_phase_im = "hilbert_phase_im.png"
-    DFT0_phase_im = "DFT0_phase_im.png"
+    hilbert_phase_path = "temp/hilbert_phase_im.png"
+    DFT0_phase_path = "temp/DFT0_phase_im.png"
+    pdf_outpath = "temp/enfify_alpha.pdf"
+    os.makedirs("temp", exist_ok=True)
 
     if hil_interest_region == 0:
-        create_phase_plot(x_hilbert, hilbert_phases, image_path, hilbert_phase_im)
-        create_phase_plot(x_DFT0, DFT0_phases, image_path, DFT0_phase_im)
-        to_alpha_pdf(image_path + "/" + hilbert_phase_im, image_path + "/" + DFT0_phase_im)
+        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
+        create_phase_plot(x_DFT0, DFT0_phases, DFT0_phase_path)
+        to_alpha_pdf(hilbert_phase_path, DFT0_phase_path)
 
     create_cut_phase_plot(
         x_hilbert_new,
         hilbert_phases_new,
         x_hilbert,
         hil_interest_region,
-        image_path,
-        hilbert_phase_im,
+        hilbert_phase_path,
     )
     create_cut_phase_plot(
-        x_DFT0_new, DFT0_phases_new, x_DFT0, DFT0_interest_region, image_path, DFT0_phase_im
+        x_DFT0_new,
+        DFT0_phases_new,
+        x_DFT0,
+        DFT0_interest_region,
+        DFT0_phase_path,
     )
 
-    cut_to_alpha_pdf(image_path + "/" + hilbert_phase_im, image_path + "/" + DFT0_phase_im)
+    cut_to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
 
 
-def main():
-    # Parse the arguments
-    args = parse_arguments()
-
-    # Logging
-    print(f"Processing file: {args.Audio_file_path}")
-    if args.downsampling:
-        print("Downsampling is enabled")
-    if args.bandpassfilter:
-        print("Bandpassfilter is enabled")
-    if args.VMD:
-        print("Variational Mode Decomposition is enabled")
-
-    # Read data
-    sig, fs = read_wavfile(args.Audio_file_path)
-
-    # Data Preprocessing
-    sig, fs = data_preprocessing(sig, fs, args)
-
-    # Phase Analysis
-    analyze_phase(sig, fs)
-
-
+# MAIN
 if __name__ == "__main__":
-    main()
+    app()

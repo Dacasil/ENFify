@@ -134,7 +134,7 @@ def read_wavfile(file_path):
         raise Exception("The structure of the audio data is unexpected.")
 
 
-def create_cut_phase_plot(x_new, phases_new, x_old, region_of_interest, path, name):
+def create_cut_phase_plot(x_new, phases_new, x_old, region_of_interest, path):
     """_summary_
 
     Args:
@@ -143,7 +143,6 @@ def create_cut_phase_plot(x_new, phases_new, x_old, region_of_interest, path, na
         x_old (_type_): _description_
         region_of_interest (_type_): _description_
         path (_type_): _description_
-        name (_type_): _description_
     """
 
     plt.plot(x_new, np.degrees(phases_new))
@@ -153,18 +152,17 @@ def create_cut_phase_plot(x_new, phases_new, x_old, region_of_interest, path, na
     plt.axvline(x=x_old[int(np.min(region_of_interest))] - 1, color="red", linestyle="--")
     plt.axvline(x=x_old[int(np.max(region_of_interest))] + 1, color="red", linestyle="--")
     plt.grid(True)
-    plt.savefig(path + "/" + name)
+    plt.savefig(path)
     plt.close()
 
 
-def create_phase_plot(x_new, phases_new, path, name):
+def create_phase_plot(x_new, phases_new, path):
     """_summary_
 
     Args:
         x_new (_type_): _description_
         phases_new (_type_): _description_
         path (_type_): _description_
-        name (_type_): _description_
     """
 
     plt.plot(x_new, np.degrees(phases_new))
@@ -172,11 +170,11 @@ def create_phase_plot(x_new, phases_new, path, name):
     plt.ylabel("Phase in degrees")
     plt.title("Phasediagramm")
     plt.grid(True)
-    plt.savefig(path + "/" + name)
+    plt.savefig(path)
     plt.close()
 
 
-def cut_to_alpha_pdf(im_path1, im_path2):
+def cut_to_alpha_pdf(im_path1, im_path2, outpath):
     """_summary_
 
     Args:
@@ -203,7 +201,7 @@ def cut_to_alpha_pdf(im_path1, im_path2):
     pdf.chapter_body_with_bold("\033[1mA phase discontinuity is detected.\033[0m")
 
     # PDF speichern
-    pdf.output("enfify_alpha.pdf")
+    pdf.output(outpath)
     print("\n==============\n\n\n\n\nPDF READY\n\n\n\n\n==============\n")
 
 

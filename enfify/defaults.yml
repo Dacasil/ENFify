@@ -1,0 +1,24 @@
+# Defaults file for ENFify - Audio Tampering Detection Tool
+
+# Downsampling Configuration
+downsample: true
+downsampling_freq: 1000  # Frequency to downsample to in Hz
+
+# Bandpass Filter Configuration
+bandpassfilter: true
+bandpass_lowcut: 49.8    # Low cut frequency in Hz
+bandpass_highcut: 50.2   # High cut frequency in Hz
+
+# Variational Mode Decomposition (VMD) Configuration
+VMD: false
+VMD_params: 
+  alpha: 2000            # Balancing parameter of the data-fidelity constraint
+  tau: 0                 # Noise-tolerance (no strict fidelity enforcement)
+  n_mode: 3              # Number of modes to be recovered
+  DC: false              # True if the first mode is to be DC (0-freq)
+  tol: 1e-7              # Tolerance of convergence criterion
+
+# Phase Analysis Configuration
+expected_enf: 50.0       # Expected ENF frequency in Hz
+num_cycles: 5            # Number of cycles for phase estimation
+n_dft: 20001             # Number of points in DFT for phase estimation
