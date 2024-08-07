@@ -116,7 +116,7 @@ def insert_cut(s_in, f_s, nominal_enf=50, nominal_cycles=1.25, location=0.5):
     return s_in
 
 
-def downsampling(s_raw, f_s, f_ds=1_000):
+def downsampling(s_raw, f_s, f_ds):
     if f_s % f_ds == 0:
         downsample_factor = f_s // f_ds
         s_ds = signal.decimate(s_raw, downsample_factor)

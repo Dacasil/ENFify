@@ -1,17 +1,8 @@
 """Module to generate PDF files and plots"""
 
 import numpy as np
-from scipy.io import wavfile
-import os
 from fpdf import FPDF
 import matplotlib.pyplot as plt
-
-# from selenium import webdriver
-# from selenium.webdriver.chrome.service import Service
-# from selenium.webdriver.common.by import By
-# from selenium.webdriver.support.ui import WebDriverWait
-# from selenium.webdriver.support import expected_conditions as EC
-# from selenium.common.exceptions import NoSuchElementException
 
 
 # Class to generate a PDF file
@@ -75,63 +66,36 @@ class PDF(FPDF):
 
 
 # Generate the Pdf (Blaupause)
-def to_pdf(data):
-    """_summary_
+# def to_pdf(data):
+#     """_summary_
 
-    Args:
-        data (_type_): _description_
-    """
-    pdf = PDF()
-    pdf.add_page()
-    image_folder = "pictures"  # Passe diesen Pfad an
+#     Args:
+#         data (_type_): _description_
+#     """
+#     pdf = PDF()
+#     pdf.add_page()
+#     image_folder = "pictures"  # Passe diesen Pfad an
 
-    text = f"{(data)}\n{(data)}"
-    print(text)
-    pdf.chapter_body(text)
+#     text = f"{(data)}\n{(data)}"
+#     print(text)
+#     pdf.chapter_body(text)
 
-    # Phase discontinuity
-    pdf.chapter_title("Phase discontinuity")
-    image = str(plot_names[1] + ".jpeg")  # TODO: woher plot_names?
-    pdf.add_image(os.path.join(image_folder, image), w=pdf.w - 20)
-    pdf.chapter_body("Displayed is the phase diagram in the zone of interest")
+#     # Phase discontinuity
+#     pdf.chapter_title("Phase discontinuity")
+#     image = str(plot_names[1] + ".jpeg")  # TODO: woher plot_names?
+#     pdf.add_image(os.path.join(image_folder, image), w=pdf.w - 20)
+#     pdf.chapter_body("Displayed is the phase diagram in the zone of interest")
 
-    # Ausgaben
-    pdf.add_page()
-    pdf.chapter_title("Rodriguez Classification")
-    image = str(plot_names[2] + ".png")
-    pdf.add_image(os.path.join(image_folder, image), w=pdf.w - 20)
-    pdf.chapter_body("See above the classification")
+#     # Ausgaben
+#     pdf.add_page()
+#     pdf.chapter_title("Rodriguez Classification")
+#     image = str(plot_names[2] + ".png")
+#     pdf.add_image(os.path.join(image_folder, image), w=pdf.w - 20)
+#     pdf.chapter_body("See above the classification")
 
-    pdf.output("enfify_alpha.pdf")
+#     pdf.output("enfify_alpha.pdf")
 
-    print("\n==============\n\n\n\n\nPDF READY\n\n\n\n\n==============\n")
-
-
-def read_wavfile(file_path):
-    """_summary_
-
-    Args:
-        file_path (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    # Read the WAV file
-    fs, data = wavfile.read(file_path)
-
-    # Check the number of channels
-    if len(data.shape) == 1:
-        return data, fs
-
-    elif len(data.shape) == 2:
-        channels = data.shape[1]
-        if channels == 2:
-            data = np.mean(data, axis=1)
-            return data, fs
-        else:
-            raise Exception(f"The file has {channels} channels, which is unusual.")
-    else:
-        raise Exception("The structure of the audio data is unexpected.")
+#     print("\n==============\n\n\n\n\nPDF READY\n\n\n\n\n==============\n")
 
 
 def create_cut_phase_plot(x_new, phases_new, x_old, region_of_interest, path):

@@ -1,12 +1,14 @@
 """Module for preprocessing the ENF signal."""
 
-import numpy as np
-import scipy.signal as signal
-import random
-from scipy.stats import beta
 import math
 import os
+import random
 
+import numpy as np
+import scipy.signal as signal
+from scipy.io import wavfile
+from scipy.stats import beta
+from utils import read_wavfile
 
 ###.................Downsampling and bandpass filter.................###
 
@@ -69,17 +71,29 @@ def list_files_in_directory(input_dir, output_dir):
     return files, down_files
 
 
-def downsampling(input_file, output_file, fs_down):
+def downsampling(sig, fs, fs_down):
     """_summary_
 
     Args:
-        input_file (_type_): _description_
-        output_file (_type_): _description_
+        sig (_type_): _description_
+        fs (_type_): _description_
         fs_down (_type_): _description_
+
+    Returns:
+        _type_: _description_
     """
+    in_file_path = "/tmp/tmp.wav"
+    out_file_path = "/tmp/tmp_down.wav"
+    wavfile.write(in_file_path, fs, sig)
+
     os.system(
-        f". /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify; ffmpeg -i {input_file} -ar {fs_down} {output_file}"
+        f". /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify; ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
     )
+
+    sig, fs = read_wavfile(out_file_path)
+    os.remove(in_file_path)
+    os.remove(out_file_path)
+    return sig, fs
 
 
 def bandpass_filter(sig, lowcut, highcut, fs, order):
