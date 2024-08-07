@@ -52,9 +52,7 @@ def process_audio(
         config = yaml.safe_load(f) or {}
 
     # add defaults
-    for key, value in DEFAULTS.items():
-        if key not in config:
-            config[key] = value
+    add_defaults(config, DEFAULTS)
 
     # Read data
     sig, fs = read_wavfile(audio_file_path)
@@ -100,6 +98,8 @@ def data_preprocessing(sig, fs, audio_file_path, config):
 
 
 def analyze_phase(sig, fs, config):
+    # TODO: Schalter in Config, welche Teile der Analye durchgeführt werden sollen
+
     nom_enf = config["expected_enf"]
     NUM_CYCLES = config["num_cycles"]
     N_DFT = config["n_dft"]
@@ -119,6 +119,7 @@ def analyze_phase(sig, fs, config):
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(DFT0_phases, x_DFT0)
 
     # Create the phase plots
+    # TODO: Paths in config
     hilbert_phase_path = "temp/hilbert_phase_im.png"
     DFT0_phase_path = "temp/DFT0_phase_im.png"
     pdf_outpath = "temp/enfify_alpha.pdf"
@@ -145,6 +146,21 @@ def analyze_phase(sig, fs, config):
     )
 
     cut_to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
+
+
+def add_defaults(config, defaults):
+    """
+    Recursively add default values to a config dictionary.
+
+    Args:
+        config (dict): The configuration dictionary to update.
+        defaults (dict): The dictionary containing default values.
+    """
+    for key, value in defaults.items():
+        if key not in config or config[key] is None:
+            config[key] = value
+        elif isinstance(value, dict) and isinstance(config.get(key), dict):
+            add_defaults(config[key], value)
 
 
 # MAIN

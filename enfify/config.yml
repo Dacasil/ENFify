@@ -1,24 +1,25 @@
 # # Configuration file for ENFify - Audio Tampering Detection Tool
+# # Same as defaults.yml. If a value is missing or null, the default value will be used.
 
-# # Downsampling Configuration
-# downsample: true
-# downsampling_freq: 16000  # Frequency to downsample to in Hz
+# Downsampling Configuration
+downsample: null
+downsampling_freq: null  # Frequency to downsample to in Hz
 
-# # Bandpass Filter Configuration
-# bandpassfilter: true
-# bandpass_lowcut: 49.0    # Low cut frequency in Hz
-# bandpass_highcut: 51.0   # High cut frequency in Hz
+# Bandpass Filter Configuration
+bandpassfilter: null 
+bandpass_lowcut: null     # Low cut frequency in Hz
+bandpass_highcut: null   # High cut frequency in Hz
 
-# # Variational Mode Decomposition (VMD) Configuration
-# VMD: false
-# VMD_params: 
-#   alpha: 2000            # Balancing parameter of the data-fidelity constraint
-#   tau: 0                 # Noise-tolerance (no strict fidelity enforcement)
-#   n_mode: 3              # Number of modes to be recovered
-#   DC: false              # True if the first mode is to be DC (0-freq)
-#   tol: 1e-7              # Tolerance of convergence criterion
+# Variational Mode Decomposition (VMD) Configuration
+VMD: null
+VMD_params: 
+  alpha: null            # Balancing parameter of the data-fidelity constraint
+  tau: null                 # Noise-tolerance (no strict fidelity enforcement)
+  n_mode: null              # Number of modes to be recovered
+  DC: null              # True if the first mode is to be DC (0-freq)
+  tol: null              # Tolerance of convergence criterion
 
-# # Phase Analysis Configuration
-# expected_enf: 50.0       # Expected ENF frequency in Hz
-# num_cycles: 5            # Number of cycles for phase estimation
-# n_dft: 1024              # Number of points in DFT for phase estimation
+# Phase Analysis Configuration
+expected_enf: null      # Expected ENF frequency in Hz
+num_cycles: null        # Number of cycles for phase estimation
+n_dft: null             # Number of points in DFT for phase estimation
