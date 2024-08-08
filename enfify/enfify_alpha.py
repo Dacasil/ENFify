@@ -168,31 +168,6 @@ def main():
     
     cut_to_alpha_pdf(image_path + '/' + hilbert_phase_im, image_path + '/' + DFT0_phase_im)
 
-    '''
-    plt.plot(x_hilbert_new, np.degrees(hilbert_phases))
-    plt.xlabel("Time in seconds")
-    plt.ylabel("Phase (degrees)")
-    plt.title("Phase vs Time")
-    plt.axvline(x=x_hilbert[int(np.min(hil_interest_region))]-1, color='red', linestyle='--')
-    plt.axvline(x=x_hilbert[int(np.max(hil_interest_region))]+1, color='red', linestyle='--')
-    plt.grid(True)
-    plt.savefig(image_path + '/' + hilbert_phase_im)
-    plt.close()
-
-    plt.plot(x_DFT0_new, np.degrees(DFT0_phases))
-    plt.xlabel("Time in seconds")
-    plt.ylabel("Phase (degrees)")
-    plt.title("Phase vs Time")
-    plt.axvline(x=x_DFT0[int(np.min(DFT0_interest_region))]-1, color='red', linestyle='--')
-    plt.axvline(x=x_DFT0[int(np.max(DFT0_interest_region))]+1, color='red', linestyle='--')
-    plt.grid(True)
-    plt.savefig(image_path + '/' + DFT0_phase_im)
-    plt.close()
-    '''
-
-    
-
-
 if __name__ == "__main__":
     main()
 

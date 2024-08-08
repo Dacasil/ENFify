@@ -36,10 +36,13 @@ def lambda_accuracy(uncut_features, cut_features, Lambda):
     return p_characterization
 
 def find_cut_in_phases(phases, x):
+    '''
+    INPUT: Calculated Phases
+    '''
     second_der = np.gradient(np.gradient(phases,x), x)
   
     z_scores = np.abs(stats.zscore(second_der))
-    ausreisser = np.where(z_scores > 3)
+    ausreisser = np.where(z_scores > 20)
 
     if len(ausreisser) == 0:
         return phases, x, ausreisser

@@ -151,12 +151,12 @@ def cut_to_alpha_pdf(im_path1, im_path2):
     
     pdf.add_page()
     pdf.chapter_title("DFT0 phase discontinuity")
-    pdf.add_image(im_path1, w=pdf.w - 20)
+    pdf.add_image(im_path2, w=pdf.w - 20)
     pdf.chapter_body("The Plot shows the phase diagram of the input signal in the found zone of interest. The phase is estimated via instantaneous DFT0 phase estimation.")
     pdf.chapter_body_with_bold("\033[1mA phase discontinuity is detected.\033[0m")
 
     # PDF speichern
-    pdf.output("enfify_alpha.pdf")
+    pdf.output("OUTPUT_Audio_Data/enfify_alpha.pdf")
     print("\n==============\n\n\n\n\nPDF READY\n\n\n\n\n==============\n")
 
 def to_alpha_pdf(im_path1, im_path2):
@@ -171,10 +171,10 @@ def to_alpha_pdf(im_path1, im_path2):
 
     pdf.add_page()
     pdf.chapter_title("DFT0 phase discontinuity")
-    pdf.add_image(im_path1, w=pdf.w - 20)
+    pdf.add_image(im_path2, w=pdf.w - 20)
     pdf.chapter_body("The Plot shows the phase diagram of the input signal. The phase is estimated via instantaneous DFT0 phase estimation.")
     pdf.chapter_body_with_bold("\033[1mNo phase discontinuity is detected.\033[0m")
-    
+
     # PDF speichern
-    pdf.output("enfify_alpha.pdf")
+    pdf.output("OUTPUT_Audio_Data/enfify_alpha.pdf")
     print("\n==============\n\n\n\n\nPDF READY\n\n\n\n\n==============\n")
