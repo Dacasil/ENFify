@@ -18,14 +18,14 @@ VMD:
   is_enabled: false
   alpha: 2000            # Balancing parameter of the data-fidelity constraint
   tau: 0                 # Noise-tolerance (no strict fidelity enforcement)
-  n_mode: 3              # Number of modes to be recovered
+  n_mode: 1             # Number of modes to be recovered
   DC: false              # True if the first mode is to be DC (0-freq)
   tol: !!float 1e-7              # Tolerance of convergence criterion
 
 # Phase Analysis Configuration
 phase_estimation:
-  n_dft: 20001             # Number of points in DFT for phase estimation
-  num_cycles: 5            # Number of cycles for phase estimation
+  n_dft: 20000             # Number of points in DFT for phase estimation
+  num_cycles: 10            # Number of cycles for phase estimation
 
 # Plot Results
 plot_results:
