@@ -52,8 +52,13 @@ def downsampling(input_file, output_file, fs_down):
 
 
 def bandpass_filter(sig,lowcut, highcut, fs, order):
-    sos = signal.butter(order, [lowcut, highcut], btype='bandpass', output = 'sos', fs = fs )
+    
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    sos = signal.butter(order, [low, high], btype='band', output='sos')
     bandpass_sig = signal.sosfiltfilt(sos, sig)
+
     return bandpass_sig
 
 ###.................Generate tone and cut tone..................###

@@ -47,6 +47,7 @@ def find_cut_in_phases(phases, x):
     if len(ausreisser) == 0:
         return phases, x, ausreisser
 
+    print(len(ausreisser))
     phases_new = phases[int(np.min(ausreisser))-200 : int(np.max(ausreisser))+200]
     x_new = x[int(np.min(ausreisser))-200 : int(np.max(ausreisser))+200]
 

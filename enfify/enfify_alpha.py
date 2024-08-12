@@ -105,7 +105,7 @@ def main():
         high_cut = float(input("Set the bandpass maximum frequency: "))
 
         # Apply bandpass filter on the signal
-        sig = bandpass_filter(sig, lowcut, high_cut, fs, 4)
+        sig = bandpass_filter(sig, lowcut, high_cut, fs, 1)
 
 
     # Variational Mode Decomposition
