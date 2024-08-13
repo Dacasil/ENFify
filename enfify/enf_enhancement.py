@@ -1,4 +1,6 @@
-"""Module for ENF enhancement using Recursive Frequency Adaptation and Variational Mode Decomposition"""
+"""Module for RFA and VMD for ENF enhancement"""
+
+# TODO: Add paper links in docstrings of functions
 
 import numpy as np
 

@@ -111,7 +111,7 @@ def main(sig, fs, config):
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(phases, x_DFT0)
 
     # Create the phase plots
-    # TODO: Paths in config
+    # TODO: Paths in config or as terminal arguments
     hilbert_phase_path = "temp/hilbert_phase_im.png"
     DFT0_phase_path = "temp/DFT0_phase_im.png"
     pdf_outpath = "temp/enfify_alpha.pdf"
