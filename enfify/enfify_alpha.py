@@ -72,7 +72,7 @@ def main(sig, fs, config):
     if bandpass_config["is_enabled"]:
         lowcut = bandpass_config["lowcut"]
         highcut = bandpass_config["highcut"]
-        sig = bandpass_filter(sig, lowcut, highcut, fs, 4)
+        sig = bandpass_filter(sig, lowcut, highcut, fs, 1)
 
     # Variational Mode Decomposition
     vmd_config = config["VMD"]

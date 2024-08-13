@@ -9,6 +9,7 @@ import scipy.signal as signal
 from scipy.io import wavfile
 from scipy.stats import beta
 from utils import read_wavfile
+import matplotlib.pyplot as plt
 
 ###.................Downsampling and bandpass filter.................###
 
@@ -109,10 +110,23 @@ def bandpass_filter(sig, lowcut, highcut, fs, order):
     Returns:
         _type_: _description_
     """
-    sos = signal.butter(order, [lowcut, highcut], btype="bandpass", output="sos", fs=fs)
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    sos = signal.butter(order, [low, high], btype='band', output='sos')
     bandpass_sig = signal.sosfiltfilt(sos, sig)
+
     return bandpass_sig
 
+
+def butter_bandpass_test(lowcut, highcut, fs, order=5, label=None):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    sos = signal.butter(order, [low, high], btype='band', output='sos')
+    w, h = signal.sosfreqz(sos,worN=20000)
+    plt.semilogx((fs * 0.5 / np.pi) * w, abs(h), label=label)
+    return sos
 
 ###.................Generate tone and cut tone..................###
 
