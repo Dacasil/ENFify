@@ -209,7 +209,7 @@ def segmented_freq_estimation_DFT1(s_in, f_s, num_cycles, N_DFT, nominal_enf):
     step_size = int(f_s // nominal_enf)  # samples per nominal enf cycle
 
     num_blocks = len(s_in) // step_size - (num_cycles - 1)
-
+    
     segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
 
     freqs = []

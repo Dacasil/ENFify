@@ -26,7 +26,7 @@ app = typer.Typer()
 @app.command()
 def frontend(
     audio_file_path: str = typer.Argument(
-        "INPUT_Audio_Data/cut_min_001_ref.wav",  # TODO: am ende kein default
+        "INPUT_Audio_Data/cut_min_005_ref.wav",  # TODO: am ende kein default
         help="The path of the audio file to process.",
     ),
     config_path: str = typer.Option(
@@ -110,6 +110,7 @@ def main(sig, fs, config):
     )
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(phases, x_DFT0)
 
+
     # Create the phase plots
     # TODO: Paths in config or as terminal arguments
     hilbert_phase_path = "temp/hilbert_phase_im.png"
@@ -142,8 +143,6 @@ def main(sig, fs, config):
         cut_to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
 
 
-
-# MAIN
 if __name__ == "__main__":
     app()
 # else:

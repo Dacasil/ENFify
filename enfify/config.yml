@@ -4,9 +4,6 @@ downsample:
   is_enabled: true
   downsampling_frequency: 400
 
-bandpassfilter:
-  is_enabled: false
-
 VMD: 
   is_enabled: false
   alpha: 2000            # Balancing parameter of the data-fidelity constraint

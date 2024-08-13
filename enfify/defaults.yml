@@ -10,8 +10,8 @@ downsample:
 # Bandpass Filter Configuration
 bandpassfilter:
   is_enabled: true
-  lowcut: 49.8    # Low cut frequency in Hz
-  highcut: 50.2   # High cut frequency in Hz
+  lowcut: 49.5    # Low cut frequency in Hz
+  highcut: 50.5   # High cut frequency in Hz
 
 # Variational Mode Decomposition (VMD) Configuration
 VMD: 
