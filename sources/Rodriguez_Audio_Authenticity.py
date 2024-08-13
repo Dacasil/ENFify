@@ -36,19 +36,26 @@ def lambda_accuracy(uncut_features, cut_features, Lambda):
     return p_characterization
 
 def find_cut_in_phases(phases, x):
-    '''
-    INPUT: Calculated Phases
-    '''
-    second_der = np.gradient(np.gradient(phases,x), x)
-  
+    """_summary_
+
+    Args:
+        phases (_type_): _description_
+        x (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    second_der = np.gradient(np.gradient(phases, x), x)
+
     z_scores = np.abs(stats.zscore(second_der))
-    ausreisser = np.where(z_scores > 20)
+    ausreisser = np.array(np.where(z_scores > 10))
 
-    if len(ausreisser) == 0:
+    if np.any(ausreisser) == False:
         return phases, x, ausreisser
+    
+    else: 
+        print("Discontinuity")
+        phases_new = phases[int(np.min(ausreisser)) - 200 : int(np.max(ausreisser)) + 200]
+        x_new = x[int(np.min(ausreisser)) - 200 : int(np.max(ausreisser)) + 200]
 
-    print(len(ausreisser))
-    phases_new = phases[int(np.min(ausreisser))-200 : int(np.max(ausreisser))+200]
-    x_new = x[int(np.min(ausreisser))-200 : int(np.max(ausreisser))+200]
-
-    return phases_new, x_new, ausreisser
+        return phases_new, x_new, ausreisser

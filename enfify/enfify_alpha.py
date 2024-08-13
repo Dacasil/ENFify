@@ -157,7 +157,8 @@ def main():
     hilbert_phase_im = "hilbert_phase_im.png"
     DFT0_phase_im = "DFT0_phase_im.png"
 
-    if hil_interest_region == 0:
+    
+    if np.any(hil_interest_region) == False:
         create_phase_plot(x_hilbert, hilbert_phases, image_path, hilbert_phase_im)
         create_phase_plot(x_DFT0, DFT0_phases, image_path, DFT0_phase_im)
         to_alpha_pdf(image_path + '/' + hilbert_phase_im, image_path + '/' + DFT0_phase_im)
