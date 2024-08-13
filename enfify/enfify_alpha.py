@@ -1,5 +1,5 @@
 import os
-
+#import argparse
 import numpy as np
 import typer
 import yaml
@@ -26,7 +26,7 @@ app = typer.Typer()
 @app.command()
 def frontend(
     audio_file_path: str = typer.Argument(
-        "/home/leo/enfify/data/scratch/silva_data/INPUT_Audio_Data/cut_min_001_ref.wav",  # TODO: am ende kein default
+        "INPUT_Audio_Data/cut_min_001_ref.wav",  # TODO: am ende kein default
         help="The path of the audio file to process.",
     ),
     config_path: str = typer.Option(
@@ -117,27 +117,30 @@ def main(sig, fs, config):
     pdf_outpath = "temp/enfify_alpha.pdf"
     os.makedirs("temp", exist_ok=True)
 
-    if hil_interest_region == 0:
+
+    if np.any(hil_interest_region) == False:
         create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
         create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        to_alpha_pdf(hilbert_phase_path, DFT0_phase_path)
+        to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
 
-    create_cut_phase_plot(
-        x_hilbert_new,
-        hilbert_phases_new,
-        x_hilbert,
-        hil_interest_region,
-        hilbert_phase_path,
-    )
-    create_cut_phase_plot(
-        x_DFT0_new,
-        DFT0_phases_new,
-        x_DFT0,
-        DFT0_interest_region,
-        DFT0_phase_path,
-    )
+    else:
+        create_cut_phase_plot(
+            x_hilbert_new,
+            hilbert_phases_new,
+            x_hilbert,
+            hil_interest_region,
+            hilbert_phase_path,
+        )
+        create_cut_phase_plot(
+            x_DFT0_new,
+            DFT0_phases_new,
+            x_DFT0,
+            DFT0_interest_region,
+            DFT0_phase_path,
+        )
 
-    cut_to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
+        cut_to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
+
 
 
 # MAIN

@@ -82,12 +82,13 @@ def find_cut_in_phases(phases, x):
     second_der = np.gradient(np.gradient(phases, x), x)
 
     z_scores = np.abs(stats.zscore(second_der))
-    ausreisser = np.where(z_scores > 3)
+    ausreisser = np.array(np.where(z_scores > 10))
 
-    if len(ausreisser) == 0:
+    if np.any(ausreisser) == False:
         return phases, x, ausreisser
+    
+    else: 
+        phases_new = phases[int(np.min(ausreisser)) - 200 : int(np.max(ausreisser)) + 200]
+        x_new = x[int(np.min(ausreisser)) - 200 : int(np.max(ausreisser)) + 200]
 
-    phases_new = phases[int(np.min(ausreisser)) - 200 : int(np.max(ausreisser)) + 200]
-    x_new = x[int(np.min(ausreisser)) - 200 : int(np.max(ausreisser)) + 200]
-
-    return phases_new, x_new, ausreisser
+        return phases_new, x_new, ausreisser
