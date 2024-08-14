@@ -1,14 +1,14 @@
 # OUR GITIGNORE LINES
 scratch
 temp
+*data*
+*Data*
 hidden*
 lab*
 *.pdf
 *.mp3
 *.wav
 *.png
-*Data
-*data
 
 # FROM HERE ON GITIGNORE FROM COOKIECUTTER
 
