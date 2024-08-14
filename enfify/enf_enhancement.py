@@ -1,8 +1,10 @@
-"""Module for RFA and VMD for ENF enhancement"""
+"""Module for ENF enhancement"""
 
 # TODO: Add paper links in docstrings of functions
 
 import numpy as np
+from scipy.signal import windows
+from scipy.fft import fft
 
 # import scipy.signal as signal
 from tqdm import tqdm
@@ -295,3 +297,41 @@ def VariationalModeDecomposition(signal, alpha, tau, num_modes, enforce_DC, tole
         mode_spectra_final[:, mode] = np.fft.fftshift(np.fft.fft(modes[mode, :]))
 
     return modes, mode_spectra_final, final_freq_centers
+
+
+# ...................................Maximum Likelyhood estimator...................................#
+
+def stft_search(sig, fs, win_dur, step_dur, fc, bnd, fft_fac):
+    win_len = int(win_dur * fs)
+    win_func = windows.boxcar(win_len)
+    step = int(step_dur * fs)
+    NFFT = int(fft_fac * fs)
+    
+    win_pos = np.arange(0, len(sig) - win_len + 1, step)
+    IF = np.zeros(len(win_pos))
+    
+    # Set search region
+    search_1st = np.arange(round((50 - bnd[0] / 2) * fft_fac), 
+                           round((50 + bnd[0] / 2) * fft_fac))
+    len_band = len(search_1st)
+    search_reg = np.kron(search_1st, (fc / 50)).astype(int)
+    
+    # Search loop
+    for i, pos in enumerate(win_pos):
+        temp_fft = fft(sig[pos:pos + win_len] * win_func, n=NFFT)
+        half_fft = temp_fft[:NFFT // 2]
+        abs_half_fft = np.abs(half_fft)
+        
+        fbin_cand = abs_half_fft[search_reg]
+        fbin_cand = fbin_cand.reshape((len(fc), len_band))
+        weighted_fbin = np.sum(fbin_cand**2, axis=0)
+        max_val = np.max(weighted_fbin)
+        peak_loc = search_1st[np.where(weighted_fbin == max_val)[0][0]]
+        IF[i] = peak_loc * fs / NFFT * 2
+    
+    norm_fc = 100
+    norm_bnd = 100 * bnd[0] / fc[0]
+    IF[IF < norm_fc - norm_bnd] = norm_fc - norm_bnd
+    IF[IF > norm_fc + norm_bnd] = norm_fc + norm_bnd
+    
+    return IF

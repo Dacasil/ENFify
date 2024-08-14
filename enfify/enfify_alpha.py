@@ -3,6 +3,7 @@ import os
 import numpy as np
 import typer
 import yaml
+
 from enf_enhancement import VariationalModeDecomposition
 from enf_estimation import (
     segmented_phase_estimation_DFT0,

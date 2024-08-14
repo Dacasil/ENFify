@@ -1,7 +1,7 @@
 # # Configuration file for ENFify - Audio Tampering Detection Tool
 # # Same as defaults.yml. If a value is missing or null, the default value will be used.
 downsample:
-  is_enabled: true
+  is_enabled: false
   downsampling_frequency: 400
 
 VMD: 
