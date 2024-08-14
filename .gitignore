@@ -1,7 +1,6 @@
 # OUR GITIGNORE LINES
 scratch
 temp
-enfify/INPUT_Audio_Data
 hidden*
 lab*
 *.pdf
@@ -10,7 +9,6 @@ lab*
 *.png
 *Data
 *data
-
 
 # FROM HERE ON GITIGNORE FROM COOKIECUTTER
 
