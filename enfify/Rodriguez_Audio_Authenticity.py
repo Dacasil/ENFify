@@ -3,6 +3,7 @@
 import numpy as np
 from sklearn.metrics import roc_curve
 from scipy import stats
+import matplotlib.pyplot as plt
 
 
 # ..........................Feature Estimation.........................#
@@ -70,6 +71,7 @@ def lambda_accuracy(uncut_features, cut_features, Lambda):
 
 
 def find_cut_in_phases(phases, x):
+
     """_summary_
 
     Args:
@@ -79,16 +81,50 @@ def find_cut_in_phases(phases, x):
     Returns:
         _type_: _description_
     """
+
+    range_threshold = 20
+    window_size = 10
     second_der = np.gradient(np.gradient(phases, x), x)
 
+    plt.scatter(np.arange(len(second_der)), second_der)
+    plt.show()
+
     z_scores = np.abs(stats.zscore(second_der))
-    ausreisser = np.array(np.where(z_scores > 10))
+    outliers = np.array(np.where(z_scores > 3))
 
-    if np.any(ausreisser) == False:
-        return phases, x, ausreisser
+    if np.any(outliers) == False:
+        return phases, x, outliers
     
-    else: 
-        phases_new = phases[int(np.min(ausreisser)) - 200 : int(np.max(ausreisser)) + 200]
-        x_new = x[int(np.min(ausreisser)) - 200 : int(np.max(ausreisser)) + 200]
+    else:
+        discontinuities = []
+        i = 0
 
-        return phases_new, x_new, ausreisser
+        while i < len(outliers[0]) - 1:
+            start = outliers[0][i]
+            while i < len(outliers[0]) - 1 and (outliers[0][i + 1] - outliers[0][i]) <= range_threshold:
+                i += 1
+            end = outliers[0][i]
+
+            # Search for the cut discontinuitites
+            if end - start >= window_size:
+                segment = second_der[start:end + 1]
+                pos_count = np.sum(segment > 0)
+                neg_count = np.sum(segment < 0)
+                
+                if pos_count > 0 and neg_count > 0:
+                    discontinuities.append((start, end))
+            
+            i += 1
+
+        discontinuities = np.array(discontinuities)
+
+        if np.any(discontinuities) == False:
+            return phases, x, discontinuities
+        
+        start = discontinuities[0][0]
+        end = discontinuities[0][1]
+
+        phases_new = phases[int(start) - 200 : int(end) + 200]
+        x_new = x[int(start) - 200 : int(end) + 200]
+
+        return phases_new, x_new, discontinuities

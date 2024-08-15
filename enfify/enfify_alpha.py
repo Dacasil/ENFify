@@ -109,6 +109,7 @@ def main(sig, fs, config):
     hilbert_phases_new, x_hilbert_new, hil_interest_region = find_cut_in_phases(
         hilbert_phases, x_hilbert
     )
+    
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(phases, x_DFT0)
 
 
@@ -119,9 +120,21 @@ def main(sig, fs, config):
     pdf_outpath = "temp/enfify_alpha.pdf"
     os.makedirs("temp", exist_ok=True)
 
+    print(hil_interest_region)
+    #print(DFT0_interest_region)
 
-    if np.any(hil_interest_region) == False:
+    if np.any(hil_interest_region) == False and np.any(DFT0_interest_region) == False:
         create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
+        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
+        to_alpha_pdf(hilbert_phase_path, hilbert_phase_path, pdf_outpath)
+    
+    elif np.any(hil_interest_region) == False and np.any(DFT0_interest_region) == True:
+        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
+        create_cut_phase_plot(x_DFT0_new, DFT0_phases_new, x_DFT0, DFT0_interest_region, DFT0_phase_path)
+        to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
+    
+    elif np.any(hil_interest_region) == True and np.any(DFT0_interest_region) == False:
+        create_cut_phase_plot(x_hilbert_new, hilbert_phases_new, x_hilbert, hil_interest_region, hilbert_phase_path)
         create_phase_plot(x_DFT0, phases, DFT0_phase_path)
         to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
 
@@ -133,6 +146,7 @@ def main(sig, fs, config):
             hil_interest_region,
             hilbert_phase_path,
         )
+        
         create_cut_phase_plot(
             x_DFT0_new,
             DFT0_phases_new,
@@ -140,8 +154,8 @@ def main(sig, fs, config):
             DFT0_interest_region,
             DFT0_phase_path,
         )
-
-        cut_to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
+        
+        cut_to_alpha_pdf(hilbert_phase_path, hilbert_phase_path, pdf_outpath)
 
 
 if __name__ == "__main__":

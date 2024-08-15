@@ -329,6 +329,8 @@ def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
         _type_: _description_
     """
 
+    window_type = "hamming"
+
     step_size = int(f_s // nominal_enf)
 
     num_blocks = len(s_in) // step_size - (num_cycles - 1)
@@ -336,8 +338,14 @@ def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
     segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
 
     phases = []
+
     for i in range(len(segments)):
-        phase = hilbert_instantaneous_phase(segments[i])
+
+        M = len(segments[i])
+        window = get_window(window_type, M)
+        hann_segment = segments[i] * window
+
+        phase = hilbert_instantaneous_phase(hann_segment)
         phase = np.mean(phase)
         phases.append(phase)
 
