@@ -1,9 +1,9 @@
 # OUR GITIGNORE LINES
 lab*
-# *.pdf
+*.pdf
 *.mp3
-# *.wav
-# *.png
+*.wav
+*.png
 
 *scratch*
 *temp*
