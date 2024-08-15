@@ -1,10 +1,8 @@
 """Methods for the Audio Authenticity algorithm from the Rodriguez Paper."""
 
 import numpy as np
-from sklearn.metrics import roc_curve
 from scipy import stats
-import matplotlib.pyplot as plt
-
+from sklearn.metrics import roc_curve
 
 # ..........................Feature Estimation.........................#
 
@@ -71,7 +69,6 @@ def lambda_accuracy(uncut_features, cut_features, Lambda):
 
 
 def find_cut_in_phases(phases, x):
-
     """_summary_
 
     Args:
@@ -86,41 +83,41 @@ def find_cut_in_phases(phases, x):
     window_size = 10
     second_der = np.gradient(np.gradient(phases, x), x)
 
-    plt.scatter(np.arange(len(second_der)), second_der)
-    plt.show()
-
     z_scores = np.abs(stats.zscore(second_der))
     outliers = np.array(np.where(z_scores > 3))
 
-    if np.any(outliers) == False:
+    if not np.any(outliers):
         return phases, x, outliers
-    
+
     else:
         discontinuities = []
         i = 0
 
         while i < len(outliers[0]) - 1:
             start = outliers[0][i]
-            while i < len(outliers[0]) - 1 and (outliers[0][i + 1] - outliers[0][i]) <= range_threshold:
+            while (
+                i < len(outliers[0]) - 1
+                and (outliers[0][i + 1] - outliers[0][i]) <= range_threshold
+            ):
                 i += 1
             end = outliers[0][i]
 
             # Search for the cut discontinuitites
             if end - start >= window_size:
-                segment = second_der[start:end + 1]
+                segment = second_der[start : end + 1]
                 pos_count = np.sum(segment > 0)
                 neg_count = np.sum(segment < 0)
-                
+
                 if pos_count > 0 and neg_count > 0:
                     discontinuities.append((start, end))
-            
+
             i += 1
 
         discontinuities = np.array(discontinuities)
 
-        if np.any(discontinuities) == False:
+        if not np.any(discontinuities):
             return phases, x, discontinuities
-        
+
         start = discontinuities[0][0]
         end = discontinuities[0][1]
 

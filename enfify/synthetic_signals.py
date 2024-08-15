@@ -1,7 +1,8 @@
+import math
+import random
+
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy.signal as signal
-import scipy
+from scipy.stats import beta
 from tqdm import tqdm
 
 
@@ -125,17 +126,19 @@ def random_signal(AMPLITUDE, DURATION, F_DS, NOMINAL_ENF, PM_NOMINAL, CUT_SAMPLE
     return sig_uncut, sig_cut
 
 
-def func_ENF_synthesis_corrupted_harmonic(fundamental_f, harmonic_index, corrupted_index, duration, fs, corrupt):
+def func_ENF_synthesis_corrupted_harmonic(
+    fundamental_f, harmonic_index, corrupted_index, duration, fs, corrupt
+):
     N = int(duration * fs)
-    
+
     # Create fundamental IF
     f0 = np.random.randn(N)
     enf_freq = np.cumsum(f0) * 0.0005
     enf_freq = enf_freq / np.std(enf_freq) * np.sqrt(4.5e-4)
     enf_freq = enf_freq + fundamental_f
     enf_freqs = np.outer(harmonic_index, enf_freq)  # Instantaneous freqs across all harmonics
-    
-    if corrupt == True:
+
+    if corrupt:
         index = np.intersect1d(harmonic_index, corrupted_index) - 1
         for i in range(len(index)):
             enf_freqs[index[i], :] = enf_freqs[index[i], :] + 5 * np.random.randn(N)
@@ -148,8 +151,10 @@ def func_ENF_synthesis_corrupted_harmonic(fundamental_f, harmonic_index, corrupt
     # Synthesize time domain waveforms
     ENF_multi = np.zeros((N_harmonic, N))
     for n in tqdm(range(N)):
-        ENF_multi[:, n] = amps[:, n] * np.cos(2 * np.pi / fs * np.sum(enf_freqs[:, :n+1], axis=1) + phases)
-    
+        ENF_multi[:, n] = amps[:, n] * np.cos(
+            2 * np.pi / fs * np.sum(enf_freqs[:, : n + 1], axis=1) + phases
+        )
+
     for i in range(min(6, N_harmonic)):
         ENF_multi[i, :] = ENF_multi[i, :] / np.linalg.norm(ENF_multi[i, :])
 

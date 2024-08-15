@@ -2,19 +2,18 @@
 
 import os
 import re
+import subprocess
+
+import matplotlib.pyplot as plt
 import numpy as np
-import platform
 import scipy.signal as signal
 from scipy.io import wavfile
-from scipy.stats import beta
 from utils import read_wavfile
-import matplotlib.pyplot as plt
 
-###.................Downsampling and bandpass filter.................###
+# .................Downsampling and bandpass filter.................#
 
 
 def downsampling_python(s_raw, f_s, f_ds=1_000):
-
     """Downsampling of numpy array via python
 
     Args:
@@ -45,29 +44,30 @@ def downsampling_python(s_raw, f_s, f_ds=1_000):
     return s_ds
 
 
-def downsampling(in_file_path, out_file_path, fs_down):
+# def downsampling_alpha(in_file_path, out_file_path, fs_down):
+#     """Downsample a audio signal with ffmpeg to reduce numrical costs and enable signale preprocessing and denoising
 
-    """Downsample a audio signal with ffmpeg to reduce numrical costs and enable signale preprocessing and denoising
+#     Args:
+#         in_file_path (str): Where data to downsample is stored + filename
+#         out_file_path (str): Where downsampled data to store + filename
 
-    Args:
-        in_file_path (str): Where data to downsample is stored + filename
-        out_file_path (str): Where downsampled data to store + filename
+#     Returns:
+#         None
+#     """
 
-    Returns:
-        None
-    """
+#     if platform.system() == "Windows":
+#         # Windows-specific Command
+#         conda_activate = (
+#             f"call {os.getenv('USERPROFILE')}\\miniforge3\\Scripts\\activate.bat enfify"
+#         )
+#         ffmpeg_command = f"ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
+#         os.system(f"{conda_activate} && {ffmpeg_command}")
 
-    if platform.system() == "Windows":
-        # Windows-specific Command
-        conda_activate = f"call {os.getenv('USERPROFILE')}\\miniforge3\\Scripts\\activate.bat enfify"
-        ffmpeg_command = f"ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
-        os.system(f"{conda_activate} && {ffmpeg_command}")
-
-    else:
-        # Unix-specific Command (Linux, macOS)
-        conda_activate = f". /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify"
-        ffmpeg_command = f"ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
-        os.system(f"{conda_activate} && {ffmpeg_command}")
+#     else:
+#         # Unix-specific Command (Linux, macOS)
+#         conda_activate = ". /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify"
+#         ffmpeg_command = f"ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
+#         os.system(f"{conda_activate} && {ffmpeg_command}")
 
 
 def downsampling_alpha(sig, fs, fs_down):
@@ -82,15 +82,19 @@ def downsampling_alpha(sig, fs, fs_down):
     Returns:
         _type_: _description_
     """
-    in_file_path = "/tmp/tmp.wav"
-    out_file_path = "/tmp/tmp_down.wav"
+    in_file_path = "tmp.wav"  # maybe move to /tmp but not generic for windows
+    out_file_path = "tmp_down.wav"
 
     wavfile.write(in_file_path, fs, sig)
 
-    os.system(
-        f". /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify; ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
+    # os.system(
+    #     f". /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify; ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
+    # )
+    subprocess.run(
+        ["ffmpeg", "-i", in_file_path, "-ar", str(fs_down), out_file_path],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
-
     sig, fs = read_wavfile(out_file_path)
     os.remove(in_file_path)
     os.remove(out_file_path)
@@ -114,14 +118,13 @@ def bandpass_filter(sig, lowcut, highcut, fs, order):
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    sos = signal.butter(order, [low, high], btype='band', output='sos')
+    sos = signal.butter(order, [low, high], btype="band", output="sos")
     bandpass_sig = signal.sosfiltfilt(sos, sig)
 
     return bandpass_sig
 
 
 def butter_bandpass_test(lowcut, highcut, fs, order=5):
-
     """Test the butter bandpass filter
 
     Args:
@@ -133,19 +136,20 @@ def butter_bandpass_test(lowcut, highcut, fs, order=5):
     Returns:
         Numpy Array: Bandpass Filter
     """
-    
+
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    sos = signal.butter(order, [low, high], btype='band', output='sos')
-    w, h = signal.sosfreqz(sos,worN=20000)
+    sos = signal.butter(order, [low, high], btype="band", output="sos")
+    w, h = signal.sosfreqz(sos, worN=20000)
     plt.semilogx((fs * 0.5 / np.pi) * w, abs(h))
     return sos
 
-###.................Extract and generate File names..................###
+
+# .................Extract and generate File names..................#
+
 
 def extract_number(file_name):
-
     """Extract number of Audio file anames to sort them
 
     Args:
@@ -155,13 +159,12 @@ def extract_number(file_name):
         _type_: Paths + Names of cut and uncut audio files
     """
 
-    match = re.match(r'(\d+)_audio\.wav', file_name)
-    return int(match.group(1)) if match else float('inf')
+    match = re.match(r"(\d+)_audio\.wav", file_name)
+    return int(match.group(1)) if match else float("inf")
 
 
 def list_files_in_directory(input_dir, output_dir):
-
-    """ File names and directory paths for donwsampling audio files with ffmpeg
+    """File names and directory paths for donwsampling audio files with ffmpeg
 
     Args:
         input_dir (string): directory names where the audio files are stored
@@ -188,7 +191,6 @@ def list_files_in_directory(input_dir, output_dir):
 
 
 def ffmpeg_filenames_cut(input_dir, output_dir):
-
     """File names and directory paths for cut and uncut samples with ffmpeg
 
     Args:
@@ -209,9 +211,9 @@ def ffmpeg_filenames_cut(input_dir, output_dir):
         files = []
 
         for raw in raw_files:
-            cut_file = output_dir + '/cut_'+raw
+            cut_file = output_dir + "/cut_" + raw
             cut_files.append(cut_file)
-        
+
         for raw in raw_files:
             files.append(input_dir + "/" + raw)
 
@@ -223,10 +225,10 @@ def ffmpeg_filenames_cut(input_dir, output_dir):
         return f"Permission denied to access {input_dir}."
 
 
-###.................Cut signbal..................###
+# .................Cut signbal..................#
+
 
 def cut_tones(sig, F_DS):
-
     """Random cuts numpy arrays
 
     Args:
@@ -249,7 +251,6 @@ def cut_tones(sig, F_DS):
 
 
 def cut_audio(input_file, output_file, cut_begin, cut_len):
-
     """
     Single cut in audio files with ffmpeg (.wav or .mp3 files)
 
@@ -264,26 +265,27 @@ def cut_audio(input_file, output_file, cut_begin, cut_len):
     """
 
     # Ensure paths with spaces are quoted
-    input_file_quoted = input_file.replace(' ', '\ ')
-    output_file_quoted = output_file.replace(' ', '\ ')
+    input_file_quoted = input_file.replace(" ", r"\ ")
+    output_file_quoted = output_file.replace(" ", r"\ ")
 
     # Command to execute
     command = (
-        f'. /home/$USER/miniforge3/etc/profile.d/conda.sh; '
-        f'conda activate enfify; '
-        f'ffmpeg -i {input_file_quoted} -filter_complex '
+        f". /home/$USER/miniforge3/etc/profile.d/conda.sh; "
+        f"conda activate enfify; "
+        f"ffmpeg -i {input_file_quoted} -filter_complex "
         f'"[0]atrim=end={cut_begin},asetpts=PTS-STARTPTS[a1]; '
-        f'[0]atrim=start={cut_len},asetpts=PTS-STARTPTS[a2]; '
+        f"[0]atrim=start={cut_len},asetpts=PTS-STARTPTS[a2]; "
         f'[a1][a2]concat=n=2:v=0:a=1[out]" '
         f'-map "[out]" {output_file_quoted}'
     )
 
     # Execute the command
     os.system(command)
-    
 
-def mult_cut_audio(input_file, output_file, cut_begin_1, cut_end_1, cut_begin_2, cut_end_2, cut_begin_3, cut_end_3):
 
+def mult_cut_audio(
+    input_file, output_file, cut_begin_1, cut_end_1, cut_begin_2, cut_end_2, cut_begin_3, cut_end_3
+):
     """
     Three Cuts in audio files with ffmpeg (.wav or .mp3 files)
 
@@ -296,20 +298,20 @@ def mult_cut_audio(input_file, output_file, cut_begin_1, cut_end_1, cut_begin_2,
     Returns:
         _type_: Returns nothing, cut audio file gets saved in output_file path
     """
-    
+
     # Ensure paths with spaces are quoted
-    input_file_quoted = input_file.replace(' ', '\ ')
-    output_file_quoted = output_file.replace(' ', '\ ')
+    input_file_quoted = input_file.replace(" ", r"\ ")
+    output_file_quoted = output_file.replace(" ", r"\ ")
 
     # Command to execute
     command = (
-        f'. /home/$USER/miniforge3/etc/profile.d/conda.sh; '
-        f'conda activate enfify; '
-        f'ffmpeg -i {input_file_quoted} -filter_complex '
+        f". /home/$USER/miniforge3/etc/profile.d/conda.sh; "
+        f"conda activate enfify; "
+        f"ffmpeg -i {input_file_quoted} -filter_complex "
         f'"[0]atrim=end={cut_begin_1},asetpts=PTS-STARTPTS[a1]; '
-        f'[0]atrim=start={cut_end_1}:end={cut_begin_2},asetpts=PTS-STARTPTS[a2]; '
-        f'[0]atrim=start={cut_end_2}:end={cut_begin_3},asetpts=PTS-STARTPTS[a3]; '
-        f'[0]atrim=start={cut_end_3},asetpts=PTS-STARTPTS[a4]; '
+        f"[0]atrim=start={cut_end_1}:end={cut_begin_2},asetpts=PTS-STARTPTS[a2]; "
+        f"[0]atrim=start={cut_end_2}:end={cut_begin_3},asetpts=PTS-STARTPTS[a3]; "
+        f"[0]atrim=start={cut_end_3},asetpts=PTS-STARTPTS[a4]; "
         f'[a1][a2][a3][a4]concat=n=4:v=0:a=1[out]" '
         f'-map "[out]" {output_file_quoted}'
     )

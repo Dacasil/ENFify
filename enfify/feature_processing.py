@@ -1,19 +1,11 @@
 import os
-from glob import glob
-from pprint import pprint
 
-import matplotlib.pyplot as plt
 import numpy as np
 import yaml
-from analyses import classification_dacasil
 from enf_enhancement import VariationalModeDecomposition
-from enf_estimation import segmented_phase_estimation_DFT0, segmented_phase_estimation_hilbert
+from enf_estimation import segmented_phase_estimation_hilbert
 from preprocessing import bandpass_filter, downsampling_alpha
-from Rodriguez_Audio_Authenticity import feature
-from scipy import stats
-from sklearn.metrics import accuracy_score
-from tqdm import tqdm
-from utils import read_wavfile, add_defaults
+from utils import add_defaults
 
 
 def get_hilbert_phase(sig, fs, config=None):

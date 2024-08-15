@@ -1,7 +1,6 @@
-"""Module for analyses / classification of the features to finish the 
+"""Module for analyses / classification of the features to finish the
 tampering detection."""
 
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import zscore
 from sklearn.metrics import roc_curve
