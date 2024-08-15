@@ -87,6 +87,7 @@ def main(sig, fs, config):
         u_clean, _, _ = VariationalModeDecomposition(sig, alpha, tau, n_mode, DC, tol)
         sig = u_clean[0]
 
+
     # ENF ANALYSIS
 
     # Phase Estimation
@@ -116,12 +117,12 @@ def main(sig, fs, config):
     # Create the phase plots
     # TODO: Paths in config or as terminal arguments
     hilbert_phase_path = "temp/hilbert_phase_im.png"
+    hilbert_cut_phase_path = "temp/cut_hilbert_phase_im.png"
     DFT0_phase_path = "temp/DFT0_phase_im.png"
+    DFT0_cut_phase_path = "temp/cut_DFT0_phase_im.png"
     pdf_outpath = "temp/enfify_alpha.pdf"
     os.makedirs("temp", exist_ok=True)
 
-    print(hil_interest_region)
-    #print(DFT0_interest_region)
 
     if np.any(hil_interest_region) == False and np.any(DFT0_interest_region) == False:
         create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
@@ -130,32 +131,36 @@ def main(sig, fs, config):
     
     elif np.any(hil_interest_region) == False and np.any(DFT0_interest_region) == True:
         create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_cut_phase_plot(x_DFT0_new, DFT0_phases_new, x_DFT0, DFT0_interest_region, DFT0_phase_path)
-        to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
+        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
+        create_cut_phase_plot(x_DFT0_new, DFT0_phases_new, x_DFT0, DFT0_interest_region, DFT0_cut_phase_path)
+        to_alpha_pdf(hilbert_phase_path, DFT0_cut_phase_path, pdf_outpath)
     
     elif np.any(hil_interest_region) == True and np.any(DFT0_interest_region) == False:
-        create_cut_phase_plot(x_hilbert_new, hilbert_phases_new, x_hilbert, hil_interest_region, hilbert_phase_path)
+        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
+        create_cut_phase_plot(x_hilbert_new, hilbert_phases_new, x_hilbert, hil_interest_region, hilbert_cut_phase_path)
         create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        to_alpha_pdf(hilbert_phase_path, DFT0_phase_path, pdf_outpath)
+        to_alpha_pdf(hilbert_cut_phase_path, DFT0_phase_path, pdf_outpath)
 
     else:
+        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
         create_cut_phase_plot(
             x_hilbert_new,
             hilbert_phases_new,
             x_hilbert,
             hil_interest_region,
-            hilbert_phase_path,
+            hilbert_cut_phase_path,
         )
         
+        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
         create_cut_phase_plot(
             x_DFT0_new,
             DFT0_phases_new,
             x_DFT0,
             DFT0_interest_region,
-            DFT0_phase_path,
+            DFT0_cut_phase_path,
         )
         
-        cut_to_alpha_pdf(hilbert_phase_path, hilbert_phase_path, pdf_outpath)
+        cut_to_alpha_pdf(hilbert_cut_phase_path, DFT0_cut_phase_path, pdf_outpath)
 
 
 if __name__ == "__main__":
