@@ -1,14 +1,17 @@
 # OUR GITIGNORE LINES
-scratch
-temp
-hidden*
 lab*
-*.pdf
+# *.pdf
 *.mp3
-*.wav
-*.png
-*Data
-*data
+# *.wav
+# *.png
+
+*scratch*
+*temp*
+*hidden*
+*Data*
+*data*
+*trash*
+*output*
 
 # FROM HERE ON GITIGNORE FROM COOKIECUTTER
 
