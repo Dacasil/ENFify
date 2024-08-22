@@ -4,12 +4,12 @@ import os
 import numpy as np
 import typer
 import yaml
-from enf_enhancement import VariationalModeDecomposition
-from enf_estimation import segmented_phase_estimation_DFT0, segmented_phase_estimation_hilbert
-from preprocessing import bandpass_filter, downsampling_alpha
-from rodriguez_audio_authenticity import find_cut_in_phases
-from utils import add_defaults, read_wavfile
-from visualization import create_cut_phase_plot, create_phase_plot, cut_to_alpha_pdf, to_alpha_pdf
+from .enf_enhancement import VariationalModeDecomposition
+from .enf_estimation import segmented_phase_estimation_DFT0, segmented_phase_estimation_hilbert
+from .preprocessing import bandpass_filter, downsampling_alpha
+from .rodriguez_audio_authenticity import find_cut_in_phases
+from .utils import add_defaults, read_wavfile
+from .visualization import create_cut_phase_plot, create_phase_plot, cut_to_alpha_pdf, to_alpha_pdf
 
 # CONSTANTS
 app = typer.Typer()

@@ -2,10 +2,10 @@ import os
 
 import numpy as np
 import yaml
-from enf_enhancement import VariationalModeDecomposition
-from enf_estimation import segmented_phase_estimation_hilbert
-from preprocessing import bandpass_filter, downsampling_alpha
-from utils import add_defaults
+from .enf_enhancement import VariationalModeDecomposition
+from .enf_estimation import segmented_phase_estimation_hilbert
+from .preprocessing import bandpass_filter, downsampling_alpha
+from .utils import add_defaults
 
 
 def get_hilbert_phase(sig, fs, config=None):
