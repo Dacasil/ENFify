@@ -2,154 +2,98 @@
 
 # TODO: Add paper DOI links in docstrings of functions.
 
+import numpy as np
 import cmath
 import math
-
-import numpy as np
+import matplotlib.pyplot as plt
+from scipy.fft import fft
+from scipy.signal import get_window
 from enf_estimation import segmented_freq_estimation_DFT1
 from scipy.fft import fft
 from scipy.signal import windows
 from tqdm import tqdm
 from scipy.signal import get_window
+from numba import jit, prange
 
-# import scipy.signal as signal
-# from scipy.signal import get_window
-# from scipy.fft import fft
 
 # ...........................RFA................................#
+
+@jit(nopython=True)
 def z_SFM(sig, n, fs, alpha, tau):
-    """_summary_
-
-    Args:
-        sig (_type_): _description_
-        n (_type_): _description_
-        fs (_type_): _description_
-        alpha (_type_): _description_
-        tau (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    sum_sig = 0
-    sig_padded = np.pad(sig, (tau, tau), "constant")
-
-    # n+tau
-    for i in range(n + tau + 1):
-        sum_sig += sig_padded[i]
-    z = cmath.exp(1j * 2 * math.pi * (1 / fs) * alpha * sum_sig)
+    """Computes the z_SFM value with JIT optimization."""
+    sum_sig = np.sum(sig[n-tau:n+tau+1])
+    z = np.exp(1j * 2 * np.pi * (1 / fs) * alpha * sum_sig)
     return z
 
 
-def z_SFM_complex(sig, n, fs, alpha, tau):
-    """_summary_
-
-    Args:
-        sig (_type_): _description_
-        n (_type_): _description_
-        fs (_type_): _description_
-        alpha (_type_): _description_
-        tau (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    sum_sig = 0
-    sig_padded = np.pad(sig, (tau, tau), "constant")
-
-    # n-tau
-    for i in range(n - tau + 1):
-        sum_sig += sig_padded[i]
-    z = cmath.exp(-1j * 2 * math.pi * (1 / fs) * alpha * sum_sig)
-    return z
+@jit(nopython=True, parallel=True)
+def kernel_function(sig, f, n, fs, alpha, tau_values, tau_dash_values):
+    """Computes the kernel function using JIT and vectorized operations."""
+    auto_corr = np.array([z_SFM(sig, n, fs, alpha, tau) for tau in tau_values])
+    auto_corr_dash = np.array([z_SFM(sig, n, fs, alpha, tau_dash) for tau_dash in tau_dash_values])
+    
+    sin_vals = np.sin(2 * np.pi * (1 / fs) * f * tau_values)
+    cos_vals = np.cos(2 * np.pi * (1 / fs) * f * tau_values)
+    
+    kernel = (auto_corr ** sin_vals) * (auto_corr_dash ** cos_vals)
+    return np.angle(kernel)
 
 
-def kernel_function(sig, f, n, fs, alpha, tau):
-    """_summary_
+@jit(nopython=True, parallel=True)
+def rfa_kernal_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values):
 
-    Args:
-        sig (_type_): _description_
-        f (_type_): _description_
-        n (_type_): _description_
-        fs (_type_): _description_
-        alpha (_type_): _description_
-        tau (_type_): _description_
+    for n in prange(Nx - 1):
+        f = f_start[n]
+        kernel_phases = kernel_function(sig, f, n, fs, alpha, tau_values, tau_dash_values)
+        denoised_sig[n] = np.sum(kernel_phases) / ((tau + 1) * tau * np.pi * alpha)
 
-    Returns:
-        _type_: _description_
-    """
-    tau_dash = int(tau + np.round(fs / (4 * f)))
-    auto_corr = z_SFM(sig, n, fs, alpha, tau) * z_SFM_complex(sig, n, fs, alpha, tau)
-    auto_corr_dash = z_SFM(sig, n, fs, alpha, tau_dash) * z_SFM_complex(
-        sig, n, fs, alpha, tau_dash
-    )
-
-    Kernel = auto_corr ** (
-        (1 / fs) * f * tau * math.pi * np.sin(2 * math.pi * (1 / fs) * f * tau)
-    ) * auto_corr_dash ** ((1 / fs) * f * tau * math.pi * np.cos(2 * math.pi * (1 / fs) * f * tau))
-    return Kernel
+    return denoised_sig
 
 
 def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
-    """Function to denoise the signal using the Recursive Frequency Adaptation algorithm
 
-    Args:
-        sig (_type_): _description_
-        fs (_type_): _description_
-        tau (_type_): _description_
-        epsilon (_type_): _description_
-        I (_type_): _description_
-        estimated_enf (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-
-    print("test")
-    # Initialise
-    k = 1
+    """Optimized Recursive Frequency Adaptation algorithm with partial JIT optimization."""
     Nx = len(sig)
-    alpha = 1 / 4 * fs / np.max(sig)
+    alpha = 1 / (4 * fs * np.max(sig))
     f_start = estimated_enf * np.ones(Nx)
+    tau_values = np.arange(1, tau + 1)
+    tau_dash_values = tau_values + int(np.round(fs / (4 * estimated_enf)))
 
-    while k <= var_I:
-        denoised_sig = []
+    for k in tqdm(range(var_I)):
+        denoised_sig = np.zeros(Nx)
 
-        for n in tqdm(range(0, Nx - 1)):
-            f = f_start[n]
-            phase_of_kernel = 0
+        denoised_sig = rfa_kernal_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values)
 
-            for m in range(1, tau + 1):
-                phase_of_kernel += np.angle(kernel_function(sig, f, n, fs, alpha, m))
-
-            denoised_sig.append(phase_of_kernel / ((tau + 1) * tau * math.pi * alpha))
-        print(denoised_sig)
+        # Peak frequency estimation
         peak_freqs = segmented_freq_estimation_DFT1(
-            denoised_sig, fs, num_cycles=5, N_DFT=20_000, nominal_enf=estimated_enf
+            denoised_sig, fs, num_cycles=100, N_DFT=20_000, nominal_enf=estimated_enf
         )
-        sig_len = int(len(sig) / len(peak_freqs))
-        new_freqs = np.ones(len(denoised_sig))
 
-        for var_l in range(len(peak_freqs)):
-            new_freqs[var_l * sig_len : (2 * sig_len + 2 * var_l * sig_len)] = peak_freqs[var_l]
+        base_repeats = Nx // len(peak_freqs)
+        remainder = Nx % len(peak_freqs)
+        repeat_counts = np.full(len(peak_freqs), base_repeats)
+        repeat_counts[:remainder] += 1
+        new_freqs = np.repeat(peak_freqs, repeat_counts)
 
-        f = f_start
-        numerator = 0
-        denominator = 0
-        print(new_freqs)
+        plt.figure(figsize=(10, 4))
+        plt.plot(new_freqs, color="red")
+        plt.title('Downsampled noisy tone')
+        plt.xlabel('Sample Index')
+        plt.ylabel('Amplitude')
+        plt.grid()
+        plt.show()
 
-        for s in range(len(new_freqs)):
-            numerator += (new_freqs[s] - f[s]) ** 2
-            denominator += (f[s]) ** 2
-
-        if numerator / denominator <= epsilon:
-            return denoised_sig
-
+        f_diff = new_freqs - f_start
         f_start = new_freqs
-        sig = denoised_sig
-        denoised_signal = denoised_sig
-        k += 1
-    return denoised_signal
 
+        val = np.sum(f_diff ** 2) / np.sum(f_start ** 2)
+
+        if val <= epsilon:
+            return denoised_sig
+        
+        sig = denoised_sig  # Update the signal for the next iteration
+
+    return denoised_sig
 
 
 # ...................................Variational Mode Decomposition...................................#
@@ -295,7 +239,6 @@ def VariationalModeDecomposition(signal, alpha, tau, num_modes, enforce_DC, tole
 
 # ...................................Maximum Likelyhood estimator...................................#
 
-
 def stft_search(sig, fs, win_dur, step_dur, fc, bnd, fft_fac):
     win_len = int(win_dur * fs)
     win_func = windows.boxcar(win_len)
@@ -379,4 +322,3 @@ def func_STFT_multi_tone_search_weighted(signal, fs, window_dur, step_size_dur, 
     IF[IF > norm_fc + norm_bound] = norm_fc + norm_bound
     
     return IF, weights
-
