@@ -33,7 +33,7 @@ cd ENFify
 
 3. **Create and activate the Conda environment**
 ```bash
-conda env create -f environment.yml
+make data
 conda activate enfify
 ```
 

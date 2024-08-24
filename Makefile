@@ -58,7 +58,7 @@ create_environment:
 ## Make Dataset
 .PHONY: data
 data: requirements
-	$(PYTHON_INTERPRETER) enfify/data/make_dataset.py
+	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) enfify/data/make_dataset.py
 
 
 #################################################################################
