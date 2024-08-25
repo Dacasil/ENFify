@@ -6,10 +6,13 @@ import os
 import numpy as np
 import requests
 from scipy.io import wavfile
-from enfify.preprocessing import downsampling_alpha
+
+from enfify.config import DATA_DIR
+from enfify.preprocessing import downsample_scipy
 from enfify.synthetic_signals import random_signal
 
 np.random.seed(42)
+SAMPLES_DIR = DATA_DIR / "samples"
 
 
 def download_whu_01():
@@ -28,12 +31,13 @@ def download_whu_01():
 
 
 def make_whu_sample_files():
-    uncut_path = "samples/whu_uncut_min_001_ref.wav"
-    cut_path = "samples/whu_cut_min_001_ref.wav"
+    os.makedirs(SAMPLES_DIR, exist_ok=True)
+    uncut_path = SAMPLES_DIR / "whu_uncut_min_001_ref.wav"
+    cut_path = SAMPLES_DIR / "whu_cut_min_001_ref.wav"
 
     # downloading
     sig, sample_freq = download_whu_01()
-    downsampling_alpha(sig, sample_freq, 1_000)
+    downsample_scipy(sig, sample_freq, 1_000)
     sig = sig[: sample_freq * 60]
 
     # Save uncut file
@@ -49,8 +53,9 @@ def make_whu_sample_files():
 
 
 def make_synthetic_sample_files():
-    uncut_path = "samples/synthetic_uncut_0.wav"
-    cut_path = "samples/synthetic_cut_0.wav"
+    os.makedirs(SAMPLES_DIR, exist_ok=True)
+    uncut_path = SAMPLES_DIR / "synthetic_uncut_0.wav"
+    cut_path = SAMPLES_DIR / "synthetic_cut_0.wav"
 
     sig_uncut, sig_cut = random_signal(1, 60, 1_000, 50, 0.2, 10_000)
 
@@ -59,8 +64,6 @@ def make_synthetic_sample_files():
 
 
 if __name__ == "__main__":
-    os.chdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../.."))
-
     make_whu_sample_files()
 
     make_synthetic_sample_files()

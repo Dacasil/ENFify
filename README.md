@@ -43,7 +43,7 @@ conda activate enfify
 To test the alpha version, enter the following command.
 
 ```bash
-python3 enfify/enfify_alpha.py samples/whu_cut_min_001_ref.wav
+python3 enfify/enfify_alpha.py data/samples/whu_cut_min_001_ref.wav
 ```
 
 There are also other sample files in the [`samples`](samples) folder. The `whu*.wav` files there are sourced from the [ENF-WHU-Dataset](https://github.com/ghua-ac/ENF-WHU-Dataset/tree/78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset/H1_ref). These files include reference power grid data, therefore with minimal noise. They were truncated to one minute and in the `*cut*` files added with a deletion cut.
