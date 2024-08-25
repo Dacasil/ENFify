@@ -13,7 +13,7 @@ np.random.seed(42)
 
 
 def download_whu_01():
-    url = "https://github.com/ghua-ac/ENF-WHU-Dataset/raw/78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset/H0/01.wav"
+    url = "https://github.com/ghua-ac/ENF-WHU-Dataset/raw/78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset/H1_ref/001_ref.wav"
 
     response = requests.get(url)
 
@@ -41,8 +41,8 @@ def make_whu_sample_files():
 
     # cutting
     location = np.random.randint(0, len(sig) - sample_freq * 10)
-    # location = (len(sig) - sample_freq * 10) // 2
-    sig = sig[location : location + sample_freq * 10]
+    cutlen = np.random.randint(10 * sample_freq)
+    sig = np.delete(sig, slice(location, location + cutlen))
 
     # Save cut file
     wavfile.write(cut_path, sample_freq, sig)

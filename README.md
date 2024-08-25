@@ -33,6 +33,7 @@ cd ENFify
 
 3. **Create and activate the Conda environment**
 ```bash
+make requirements
 make data
 conda activate enfify
 ```
