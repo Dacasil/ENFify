@@ -4,6 +4,12 @@ downsample:
   is_enabled: false
   downsampling_frequency: 400
 
+# Bandpass Filter Configuration
+bandpassfilter:
+  is_enabled: true
+  lowcut: 49.5    # Low cut frequency in Hz
+  highcut: 50.5   # High cut frequency in Hz
+
 VMD: 
   is_enabled: false
   alpha: 2000            # Balancing parameter of the data-fidelity constraint

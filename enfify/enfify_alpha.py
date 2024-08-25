@@ -1,55 +1,68 @@
-import os
-
-# import argparse
 import numpy as np
-import typer
+import os
 import yaml
-from enf_enhancement import VariationalModeDecomposition
-from enf_estimation import segmented_phase_estimation_DFT0, segmented_phase_estimation_hilbert
-from preprocessing import bandpass_filter, downsampling_alpha
-from rodriguez_audio_authenticity import find_cut_in_phases
-from utils import add_defaults, read_wavfile
-from visualization import create_cut_phase_plot, create_phase_plot, cut_to_alpha_pdf, to_alpha_pdf
+import typer
+from enfify.enf_enhancement import VMD, RFA
+from enfify.enf_estimation import segmented_phase_estimation_DFT0, segmented_phase_estimation_hilbert
+from enfify.preprocessing import bandpass_filter, downsampling_alpha
+from enfify.rodriguez_audio_authenticity import find_cut_in_phases
+from enfify.utils import add_defaults, read_wavfile
+from enfify.visualization import create_cut_phase_plot, create_phase_plot, cut_to_alpha_pdf, to_alpha_pdf
 
 # CONSTANTS
 app = typer.Typer()
 
-
 # FUNCTIONS
 @app.command()
 def frontend(
-    audio_file_path: str = typer.Argument(
-        help="The path of the audio file to process.",
-    ),
-    config_path: str = typer.Option(
-        None,
-        help="The path of the configuration file to use.",
-    ),
+    audio_file_path: str = typer.Argument(..., help="The path of the audio file to process."),
+    config_path: str = typer.Option(None, help="The path of the configuration file to use."),
 ):
     """
     ENFify - Audio Tampering Detection Tool
 
     Args:
         audio_file_path: The path of the audio file to process.
-        config_file_path: The path to the config file.
+        config_path: The path of the configuration file to use.
     """
 
     print(f"Processing audio file: {audio_file_path}")
 
-    # Load config and defaults
-    if config_path is not None:
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f) or {}
+    # Define paths for configuration and defaults
+    config_path = config_path or os.path.join(os.path.dirname(__file__), 'config.yml')
+    defaults_path = os.path.join(os.path.dirname(__file__), 'defaults.yml')
+
+    # Load configuration
+    config = {}
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                config = yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file: {e}")
     else:
-        config = {}
-    defaults_path = os.path.join(os.path.dirname(__file__), "defaults.yml")
-    with open(defaults_path, "r") as f:
-        defaults = yaml.safe_load(f)
-    add_defaults(config, defaults)
+        print(f"Configuration file not found: {config_path}")
+
+    # Load defaults
+    defaults = {}
+    if os.path.exists(defaults_path):
+        try:
+            with open(defaults_path, "r") as f:
+                defaults = yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file: {e}")
+
+    # Merge defaults into configuration if configuration is empty
+    if not config:
+        print("Using defaults as no valid configuration file found.")
+        config = defaults
+    else:
+        add_defaults(config, defaults)
 
     # Read data
     sig, fs = read_wavfile(audio_file_path)
 
+    # Process data with the loaded configuration
     main(sig, fs, config)
 
 
@@ -79,8 +92,19 @@ def main(sig, fs, config):
         DC = vmd_config["DC"]
         tol = vmd_config["tol"]
 
-        u_clean, _, _ = VariationalModeDecomposition(sig, alpha, tau, n_mode, DC, tol)
+        u_clean, _, _ = VMD(sig, alpha, tau, n_mode, DC, tol)
         sig = u_clean[0]
+
+    # Robust Filtering Algorithm
+    rfa_config = config["RFA"]
+    if rfa_config["is_enabled"]:
+        f0 = rfa_config["f0"]
+        I = rfa_config["I"]
+        tau = rfa_config["tau"]
+        epsilon = rfa_config["epsilon"] 
+
+        sig = RFA(sig, fs, tau, epsilon, I, f0)
+
 
     # ENF ANALYSIS
 
@@ -104,7 +128,7 @@ def main(sig, fs, config):
     hilbert_phases_new, x_hilbert_new, hil_interest_region = find_cut_in_phases(
         hilbert_phases, x_hilbert
     )
-
+    
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(phases, x_DFT0)
 
     # Create the phase plots
@@ -125,7 +149,7 @@ def main(sig, fs, config):
         create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
         create_phase_plot(x_DFT0, phases, DFT0_phase_path)
         create_cut_phase_plot(
-            x_DFT0_new, DFT0_phases_new, x_DFT0, DFT0_interest_region, DFT0_cut_phase_path
+            x_DFT0_new, DFT0_phases_new, x_DFT0, DFT0_interest_region[0], DFT0_cut_phase_path
         )
         to_alpha_pdf(hilbert_phase_path, DFT0_cut_phase_path, pdf_outpath)
 
@@ -135,7 +159,7 @@ def main(sig, fs, config):
             x_hilbert_new,
             hilbert_phases_new,
             x_hilbert,
-            hil_interest_region,
+            hil_interest_region[0],
             hilbert_cut_phase_path,
         )
         create_phase_plot(x_DFT0, phases, DFT0_phase_path)
@@ -147,7 +171,7 @@ def main(sig, fs, config):
             x_hilbert_new,
             hilbert_phases_new,
             x_hilbert,
-            hil_interest_region,
+            hil_interest_region[0],
             hilbert_cut_phase_path,
         )
 
@@ -156,12 +180,11 @@ def main(sig, fs, config):
             x_DFT0_new,
             DFT0_phases_new,
             x_DFT0,
-            DFT0_interest_region,
+            DFT0_interest_region[0],
             DFT0_cut_phase_path,
         )
 
         cut_to_alpha_pdf(hilbert_cut_phase_path, DFT0_cut_phase_path, pdf_outpath)
-
 
 if __name__ == "__main__":
     app()

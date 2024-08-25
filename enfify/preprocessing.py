@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as signal
 from scipy.io import wavfile
-from utils import read_wavfile
+from .utils import read_wavfile
 
 # .................Downsampling and bandpass filter.................#
 

@@ -8,7 +8,7 @@ import math
 import matplotlib.pyplot as plt
 from scipy.fft import fft
 from scipy.signal import get_window
-from enf_estimation import segmented_freq_estimation_DFT1
+from .enf_estimation import segmented_freq_estimation_DFT1
 from scipy.fft import fft
 from scipy.signal import windows
 from tqdm import tqdm
@@ -40,7 +40,7 @@ def kernel_function(sig, f, n, fs, alpha, tau_values, tau_dash_values):
 
 
 @jit(nopython=True, parallel=True)
-def rfa_kernal_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values):
+def rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values):
 
     for n in prange(Nx - 1):
         f = f_start[n]
@@ -59,10 +59,10 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
     tau_values = np.arange(1, tau + 1)
     tau_dash_values = tau_values + int(np.round(fs / (4 * estimated_enf)))
 
-    for k in tqdm(range(var_I)):
+    for k in range(var_I):
         denoised_sig = np.zeros(Nx)
 
-        denoised_sig = rfa_kernal_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values)
+        denoised_sig = rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values)
 
         # Peak frequency estimation
         peak_freqs = segmented_freq_estimation_DFT1(
@@ -87,6 +87,7 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
         f_start = new_freqs
 
         val = np.sum(f_diff ** 2) / np.sum(f_start ** 2)
+        print(val)
 
         if val <= epsilon:
             return denoised_sig
@@ -99,7 +100,7 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
 # ...................................Variational Mode Decomposition...................................#
 
 
-def VariationalModeDecomposition(signal, alpha, tau, num_modes, enforce_DC, tolerance):
+def VMD(signal, alpha, tau, num_modes, enforce_DC, tolerance):
     """_summary_
 
     Args:
