@@ -9,7 +9,7 @@ from enfify.enf_estimation import (
     segmented_phase_estimation_DFT0,
     segmented_phase_estimation_hilbert,
 )
-from enfify.preprocessing import bandpass_filter, downsampling_alpha
+from enfify.preprocessing import bandpass_filter, downsample_scipy
 from enfify.rodriguez_audio_authenticity import find_cut_in_phases
 from enfify.utils import add_defaults, read_wavfile
 from enfify.visualization import (
@@ -69,7 +69,7 @@ def main(sig, fs, config):
     if downsample_config["is_enabled"]:
         f_ds = downsample_config["downsampling_frequency"]
 
-        sig, fs = downsampling_alpha(sig, fs, f_ds)
+        sig, fs = downsample_scipy(sig, fs, f_ds)
 
     # Bandpass Filter
     bandpass_config = config["bandpassfilter"]
