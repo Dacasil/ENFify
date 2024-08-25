@@ -1,9 +1,7 @@
 """Module for preprocessing the ENF signal."""
 
-import io
 import os
 import re
-import subprocess
 import tempfile
 
 import ffmpeg
@@ -13,8 +11,6 @@ import scipy.signal as signal
 from loguru import logger
 from scipy.io import wavfile
 from scipy.signal import butter, decimate, lfilter, resample
-
-from enfify.utils import read_wavfile
 
 # .................Downsampling and bandpass filter.................#
 

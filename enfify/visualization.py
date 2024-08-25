@@ -5,6 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from fpdf import FPDF
+from loguru import logger
 
 
 # Class to generate a PDF file
@@ -167,7 +168,7 @@ def cut_to_alpha_pdf(im_path1, im_path2, outpath):
 
     # PDF speichern
     pdf.output(outpath)
-    print(f"Results pdf saved at {os.path.normpath(outpath)}")
+    logger.info(f"Results pdf saved at {os.path.normpath(outpath)}")
 
 
 def to_alpha_pdf(im_path1, im_path2, outpath):
@@ -198,4 +199,4 @@ def to_alpha_pdf(im_path1, im_path2, outpath):
 
     # PDF speichern
     pdf.output(outpath)
-    print(f"Results pdf saved at {os.path.normpath(outpath)}")
+    logger.info(f"Results pdf saved at {os.path.normpath(outpath)}")

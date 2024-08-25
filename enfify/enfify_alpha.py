@@ -1,9 +1,9 @@
-import os
-
-# import argparse
 import numpy as np
 import typer
 import yaml
+from loguru import logger
+
+from enfify.config import ENFIFY_DIR, FIGURES_DIR, REPORTS_DIR
 from enfify.enf_enhancement import VariationalModeDecomposition
 from enfify.enf_estimation import (
     segmented_phase_estimation_DFT0,
@@ -42,7 +42,7 @@ def frontend(
         config_file_path: The path to the config file.
     """
 
-    print(f"Processing audio file: {audio_file_path}")
+    logger.info(f"Processing audio file: {audio_file_path}")
 
     # Load config and defaults
     if config_path is not None:
@@ -50,7 +50,7 @@ def frontend(
             config = yaml.safe_load(f) or {}
     else:
         config = {}
-    defaults_path = os.path.join(os.path.dirname(__file__), "defaults.yml")
+    defaults_path = ENFIFY_DIR / "defaults.yml"
     with open(defaults_path, "r") as f:
         defaults = yaml.safe_load(f)
     add_defaults(config, defaults)
@@ -116,13 +116,11 @@ def main(sig, fs, config):
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(phases, x_DFT0)
 
     # Create the phase plots
-    # TODO: Paths in config or as terminal arguments
-    root_path = os.path.join(os.path.dirname(__file__), "../reports")
-    hilbert_phase_path = f"{root_path}/figures/hilbert_phase_im.png"
-    hilbert_cut_phase_path = f"{root_path}/figures/cut_hilbert_phase_im.png"
-    DFT0_phase_path = f"{root_path}/figures/DFT0_phase_im.png"
-    DFT0_cut_phase_path = f"{root_path}/figures/cut_DFT0_phase_im.png"
-    pdf_outpath = f"{root_path}/enfify_alpha.pdf"
+    hilbert_phase_path = str(FIGURES_DIR / "hilbert_phase_im.png")
+    hilbert_cut_phase_path = str(FIGURES_DIR / "cut_hilbert_phase_im.png")
+    DFT0_phase_path = str(FIGURES_DIR / "DFT0_phase_im.png")
+    DFT0_cut_phase_path = str(FIGURES_DIR / "cut_DFT0_phase_im.png")
+    pdf_outpath = str(REPORTS_DIR / "enfify_alpha.pdf")
 
     if not np.any(hil_interest_region) and not np.any(DFT0_interest_region):
         create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
