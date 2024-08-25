@@ -6,7 +6,7 @@ import cmath
 import math
 
 import numpy as np
-from enf_estimation import segmented_freq_estimation_DFT1
+from .enf_estimation import segmented_freq_estimation_DFT1
 from scipy.fft import fft
 from scipy.signal import windows
 from tqdm import tqdm

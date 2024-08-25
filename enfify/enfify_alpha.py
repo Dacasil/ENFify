@@ -1,15 +1,23 @@
-import os
-
-# import argparse
 import numpy as np
 import typer
 import yaml
-from enf_enhancement import VariationalModeDecomposition
-from enf_estimation import segmented_phase_estimation_DFT0, segmented_phase_estimation_hilbert
-from preprocessing import bandpass_filter, downsampling_alpha
-from rodriguez_audio_authenticity import find_cut_in_phases
-from utils import add_defaults, read_wavfile
-from visualization import create_cut_phase_plot, create_phase_plot, cut_to_alpha_pdf, to_alpha_pdf
+from loguru import logger
+
+from enfify.config import ENFIFY_DIR, FIGURES_DIR, REPORTS_DIR
+from enfify.enf_enhancement import VariationalModeDecomposition
+from enfify.enf_estimation import (
+    segmented_phase_estimation_DFT0,
+    segmented_phase_estimation_hilbert,
+)
+from enfify.preprocessing import bandpass_filter, downsample_scipy
+from enfify.rodriguez_audio_authenticity import find_cut_in_phases
+from enfify.utils import add_defaults, read_wavfile
+from enfify.visualization import (
+    create_cut_phase_plot,
+    create_phase_plot,
+    cut_to_alpha_pdf,
+    to_alpha_pdf,
+)
 
 # CONSTANTS
 app = typer.Typer()
@@ -34,7 +42,7 @@ def frontend(
         config_file_path: The path to the config file.
     """
 
-    print(f"Processing audio file: {audio_file_path}")
+    logger.info(f"Processing audio file: {audio_file_path}")
 
     # Load config and defaults
     if config_path is not None:
@@ -42,7 +50,7 @@ def frontend(
             config = yaml.safe_load(f) or {}
     else:
         config = {}
-    defaults_path = os.path.join(os.path.dirname(__file__), "defaults.yml")
+    defaults_path = ENFIFY_DIR / "defaults.yml"
     with open(defaults_path, "r") as f:
         defaults = yaml.safe_load(f)
     add_defaults(config, defaults)
@@ -61,7 +69,7 @@ def main(sig, fs, config):
     if downsample_config["is_enabled"]:
         f_ds = downsample_config["downsampling_frequency"]
 
-        sig, fs = downsampling_alpha(sig, fs, f_ds)
+        sig, fs = downsample_scipy(sig, fs, f_ds)
 
     # Bandpass Filter
     bandpass_config = config["bandpassfilter"]
@@ -108,13 +116,11 @@ def main(sig, fs, config):
     DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(phases, x_DFT0)
 
     # Create the phase plots
-    # TODO: Paths in config or as terminal arguments
-    root_path = os.path.join(os.path.dirname(__file__), "../reports")
-    hilbert_phase_path = f"{root_path}/figures/hilbert_phase_im.png"
-    hilbert_cut_phase_path = f"{root_path}/figures/cut_hilbert_phase_im.png"
-    DFT0_phase_path = f"{root_path}/figures/DFT0_phase_im.png"
-    DFT0_cut_phase_path = f"{root_path}/figures/cut_DFT0_phase_im.png"
-    pdf_outpath = f"{root_path}/enfify_alpha.pdf"
+    hilbert_phase_path = str(FIGURES_DIR / "hilbert_phase_im.png")
+    hilbert_cut_phase_path = str(FIGURES_DIR / "cut_hilbert_phase_im.png")
+    DFT0_phase_path = str(FIGURES_DIR / "DFT0_phase_im.png")
+    DFT0_cut_phase_path = str(FIGURES_DIR / "cut_DFT0_phase_im.png")
+    pdf_outpath = str(REPORTS_DIR / "enfify_alpha.pdf")
 
     if not np.any(hil_interest_region) and not np.any(DFT0_interest_region):
         create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
