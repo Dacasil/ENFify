@@ -1,0 +1,43 @@
+# nominal_enf: 50.0
+
+# Downsampling
+downsampling_frequency_per_nominal_enf: 20
+
+# Windowing
+window_type: 'hann'
+frame_len: 30 # milliseconds
+frame_overlap: 0.5
+
+# Bandpass Filter
+
+# Variational Mode Decomposition (VMD)
+
+# Robust Filtering Algorithm (RFA)
+
+# PREVIOUS
+nominal_enf: 50.0       # Expected ENF frequency in Hz
+
+# Bandpass Filter Configuration
+bandpass_filter:
+  is_enabled: true
+  lowcut: 49.5    # Low cut frequency in Hz
+  highcut: 50.5   # High cut frequency in Hz
+  order: 1
+
+# Variational Mode Decomposition (VMD) Configuration
+VMD: 
+  is_enabled: false
+  alpha: 5000            # Balancing parameter of the data-fidelity constraint
+  tau: 0                 # Noise-tolerance (no strict fidelity enforcement)
+  n_mode: 1              # Number of modes to be recovered
+  DC: 0
+  tol: !!float 1e-7      # Tolerance of convergence criterion
+
+# Phase Estimation Configuration
+phase_estimation:
+  n_dft: 20000             # Number of points in DFT for phase estimation
+  num_cycles: 10           # Number of cycles for phase estimation
+
+# Plot Results
+plot_results:
+  is_enabled: true         # TODO: Switch not used yet.
