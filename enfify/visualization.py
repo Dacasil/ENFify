@@ -5,6 +5,8 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from fpdf import FPDF
+from loguru import logger
+from enfify.config import FIGURES_DIR, REPORTS_DIR
 
 
 # Class to generate a PDF file
@@ -135,7 +137,7 @@ def cut_to_alpha_pdf(im_path1, im_paths, outpath):
 
     # PDF speichern
     pdf.output(outpath)
-    print(f"Results pdf saved at {os.path.normpath(outpath)}")
+    logger.info(f"Results pdf saved at {os.path.normpath(outpath)}")
 
 
 def to_alpha_pdf(im_path, outpath):
@@ -158,16 +160,16 @@ def to_alpha_pdf(im_path, outpath):
 
     # PDF speichern
     pdf.output(outpath)
-    print(f"Results pdf saved at {os.path.normpath(outpath)}")
+    #print(f"Results pdf saved at {os.path.normpath(outpath)}")
+    logger.info(f"Results pdf saved at {os.path.normpath(outpath)}")
 
 
 def plot_func(x_hilbert, x_hilbert_new, hilbert_phases, hilbert_phases_new, hil_interest_region):
 
     # Create the phase plots
     # TODO: Paths in config or as terminal arguments
-    root_path = os.path.join(os.path.dirname(__file__), "../reports")
-    hilbert_phase_path = f"{root_path}/figures/hilbert_phase_im.png"
-    pdf_outpath = f"{root_path}/enfify_alpha.pdf"
+    hilbert_phase_path = str(FIGURES_DIR / "hilbert_phase_im.png")
+    pdf_outpath = str(REPORTS_DIR / "enfify_alpha.pdf")
 
     if not np.any(hil_interest_region):
         create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
@@ -178,7 +180,8 @@ def plot_func(x_hilbert, x_hilbert_new, hilbert_phases, hilbert_phases_new, hil_
 
         cut_hil_phase_paths = []
         for i in range(len(hil_interest_region)):
-            cut_hil_phase_paths.append(f"{root_path}/figures/{i}cut_hilbert_phase_im.png")
+            hilbert_phase_path = str(FIGURES_DIR / "hilbert_phase_im.png")
+            cut_hil_phase_paths.append(str(FIGURES_DIR/f'{i}cut_hilbert_phase_im.png'))
 
             create_cut_phase_plot(
                 x_hilbert_new[i],

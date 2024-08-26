@@ -2,9 +2,12 @@ import numpy as np
 import os
 import yaml
 import typer
+from loguru import logger
+
+from enfify.config import ENFIFY_DIR
 from enfify.enf_enhancement import VMD, RFA
 from enfify.enf_estimation import segmented_phase_estimation_hilbert
-from enfify.preprocessing import bandpass_filter, downsampling_alpha
+from enfify.preprocessing import bandpass_filter, downsample_scipy
 from enfify.rodriguez_audio_authenticity import find_cut_in_phases
 from enfify.utils import add_defaults, read_wavfile
 from enfify.visualization import plot_func
@@ -15,8 +18,13 @@ app = typer.Typer()
 # FUNCTIONS
 @app.command()
 def frontend(
-    audio_file_path: str = typer.Argument(..., help="The path of the audio file to process."),
-    config_path: str = typer.Option(None, help="The path of the configuration file to use."),
+    audio_file_path: str = typer.Argument(
+        help="The path of the audio file to process.",
+    ),
+    config_path: str = typer.Option(
+        None,
+        help="The path of the configuration file to use.",
+    ),
 ):
     """
     ENFify - Audio Tampering Detection Tool
@@ -26,38 +34,18 @@ def frontend(
         config_path: The path of the configuration file to use.
     """
 
-    print(f"Processing audio file: {audio_file_path}")
+    logger.info(f"Processing audio file: {audio_file_path}")
 
-    # Define paths for configuration and defaults
-    config_path = config_path or os.path.join(os.path.dirname(__file__), 'config.yml')
-    defaults_path = os.path.join(os.path.dirname(__file__), 'defaults.yml')
-
-    # Load configuration
-    config = {}
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f) or {}
-        except yaml.YAMLError as e:
-            print(f"Error parsing YAML file: {e}")
+    # Load config and defaults
+    if config_path is not None:
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f) or {}
     else:
-        print(f"Configuration file not found: {config_path}")
-
-    # Load defaults
-    defaults = {}
-    if os.path.exists(defaults_path):
-        try:
-            with open(defaults_path, "r") as f:
-                defaults = yaml.safe_load(f) or {}
-        except yaml.YAMLError as e:
-            print(f"Error parsing YAML file: {e}")
-
-    # Merge defaults into configuration if configuration is empty
-    if not config:
-        print("Using defaults as no valid configuration file found.")
-        config = defaults
-    else:
-        add_defaults(config, defaults)
+        config = {}
+    defaults_path = ENFIFY_DIR / "defaults.yml"
+    with open(defaults_path, "r") as f:
+        defaults = yaml.safe_load(f)
+    add_defaults(config, defaults)
 
     # Read data
     sig, fs = read_wavfile(audio_file_path)
@@ -74,7 +62,7 @@ def main(sig, fs, config):
     if downsample_config["is_enabled"]:
         f_ds = downsample_config["downsampling_frequency"]
 
-        sig, fs = downsampling_alpha(sig, fs, f_ds)
+        sig, fs = downsample_scipy(sig, fs, f_ds)
 
     # Bandpass Filter
     bandpass_config = config["bandpassfilter"]
@@ -113,7 +101,6 @@ def main(sig, fs, config):
 
     phase_config = config["phase_estimation"]
     num_cycles = phase_config["num_cycles"]
-    n_dft = phase_config["n_dft"]
 
     time = len(sig) / fs
 

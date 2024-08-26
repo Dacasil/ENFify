@@ -46,7 +46,14 @@ create_environment:
 	conda env create --name $(PROJECT_NAME) -f environment.yml
 	
 	@echo ">>> conda env created. Activate with:\nconda activate $(PROJECT_NAME)"
-	
+
+
+
+## Try enfify_alpha
+.PHONY: try
+try:
+	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) enfify/enfify_alpha.py data/samples/whu_cut_min_001_ref.wav
+
 
 
 
@@ -57,8 +64,8 @@ create_environment:
 
 ## Make Dataset
 .PHONY: data
-data: requirements
-	$(PYTHON_INTERPRETER) enfify/data/make_dataset.py
+data: # requirements
+	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) enfify/data/make_dataset.py
 
 
 #################################################################################

@@ -2,10 +2,10 @@ import os
 
 import numpy as np
 import yaml
-from enf_enhancement import VariationalModeDecomposition
-from enf_estimation import segmented_phase_estimation_hilbert
-from preprocessing import bandpass_filter, downsampling_alpha
-from utils import add_defaults
+from .enf_enhancement import VariationalModeDecomposition
+from .enf_estimation import segmented_phase_estimation_hilbert
+from .preprocessing import bandpass_filter, downsample_scipy
+from .utils import add_defaults
 
 
 def get_hilbert_phase(sig, fs, config=None):
@@ -24,7 +24,7 @@ def get_hilbert_phase(sig, fs, config=None):
     if downsample_config["is_enabled"]:
         f_ds = downsample_config["downsampling_frequency"]
 
-        sig, fs = downsampling_alpha(sig, fs, f_ds)
+        sig, fs = downsample_scipy(sig, fs, f_ds)
 
     # Bandpass Filter
     bandpass_config = config["bandpassfilter"]

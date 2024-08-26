@@ -27,3 +27,4 @@ dependencies:
     - selenium
     - fpdf
     - numba
+    - ffmpeg-python
