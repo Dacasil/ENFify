@@ -1,7 +1,7 @@
 # # Configuration file for ENFify - Audio Tampering Detection Tool
 # # Same as defaults.yml. If a value is missing or null, the default value will be used.
 
-nominal_enf: 100.0    # Expected ENF frequency in Hz
+nominal_enf: 50.0    # Expected ENF frequency in Hz
 
 downsample:
   is_enabled: true
@@ -10,12 +10,12 @@ downsample:
 # Bandpass Filter Configuration
 bandpassfilter:
   is_enabled: true
-  lowcut: 99.5      # Low cut frequency in Hz
-  highcut: 100.5    # High cut frequency in Hz
+  lowcut: 49.5      # Low cut frequency in Hz
+  highcut: 50.5    # High cut frequency in Hz
 
 # Robust Filtering Algorithm (RFA) Configuration
 RFA: 
-  is_enabled: true
+  is_enabled: false
   f0: 100                   # estimated frequency (here ENF second harmonic)     
   I: 10                      # Number of RFA repeats
   tau: 1000                # RFA winoow size
