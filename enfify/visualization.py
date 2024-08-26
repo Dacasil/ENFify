@@ -67,39 +67,6 @@ class PDF(FPDF):
         self.ln(image_width + 10)
 
 
-# Generate the Pdf (Blaupause)
-# def to_pdf(data):
-#     """_summary_
-
-#     Args:
-#         data (_type_): _description_
-#     """
-#     pdf = PDF()
-#     pdf.add_page()
-#     image_folder = "pictures"  # Passe diesen Pfad an
-
-#     text = f"{(data)}\n{(data)}"
-#     print(text)
-#     pdf.chapter_body(text)
-
-#     # Phase discontinuity
-#     pdf.chapter_title("Phase discontinuity")
-#     image = str(plot_names[1] + ".jpeg")  # TODO: woher plot_names?
-#     pdf.add_image(os.path.join(image_folder, image), w=pdf.w - 20)
-#     pdf.chapter_body("Displayed is the phase diagram in the zone of interest")
-
-#     # Ausgaben
-#     pdf.add_page()
-#     pdf.chapter_title("Rodriguez Classification")
-#     image = str(plot_names[2] + ".png")
-#     pdf.add_image(os.path.join(image_folder, image), w=pdf.w - 20)
-#     pdf.chapter_body("See above the classification")
-
-#     pdf.output("enfify_alpha.pdf")
-
-#     print("\n==============\n\n\n\n\nPDF READY\n\n\n\n\n==============\n")
-
-
 def create_cut_phase_plot(x_new, phases_new, x_old, region_of_interest, path):
     """_summary_
 
@@ -139,7 +106,7 @@ def create_phase_plot(x_new, phases_new, path):
     plt.close()
 
 
-def cut_to_alpha_pdf(im_path1, im_path2, outpath):
+def cut_to_alpha_pdf(im_path1, im_paths, outpath):
     """_summary_
 
     Args:
@@ -150,27 +117,28 @@ def cut_to_alpha_pdf(im_path1, im_path2, outpath):
     pdf.add_page()
 
     # Diagramm in PDF einfügen
-    pdf.chapter_title("Hilbert phase discontinuity")
+    pdf.chapter_title("Hilbert phase estimation")
     pdf.add_image(im_path1, w=pdf.w - 20)
     pdf.chapter_body(
-        "The Plot shows the phase diagram of the input signal in the found zone of interest. The phase is estimated via instantaneous Hilbert phase estimation."
+        "The Plot shows the phase diagram of the input signal. The phase is estimated via instantaneous Hilbert phase estimation."
     )
-    pdf.chapter_body_with_bold("\033[1mA phase discontinuity is detected.\033[0m")
+    pdf.chapter_body_with_bold("\033[1mThe Audio shows discontinuities in its phase\033[0m")
+    pdf.chapter_body_with_bold("The discontinuities and areas of interest are displayed in the following")
 
-    pdf.add_page()
-    pdf.chapter_title("DFT0 phase discontinuity")
-    pdf.add_image(im_path2, w=pdf.w - 20)
-    pdf.chapter_body(
-        "The Plot shows the phase diagram of the input signal in the found zone of interest. The phase is estimated via instantaneous DFT0 phase estimation."
-    )
-    pdf.chapter_body_with_bold("\033[1mA phase discontinuity is detected.\033[0m")
+    for i in range(len(im_paths)):
+        pdf.add_page()
+        pdf.chapter_title("Hilbert phase discontinuities")
+        pdf.add_image(im_paths[i], w=pdf.w - 20)
+        pdf.chapter_body(
+            "The Plot shows the phase diagram of the input signal in a found zone of interest."
+        )
 
     # PDF speichern
     pdf.output(outpath)
     print(f"Results pdf saved at {os.path.normpath(outpath)}")
 
 
-def to_alpha_pdf(im_path1, im_path2, outpath):
+def to_alpha_pdf(im_path, outpath):
     """_summary_
 
     Args:
@@ -181,21 +149,43 @@ def to_alpha_pdf(im_path1, im_path2, outpath):
     pdf.add_page()
 
     # Diagramm in PDF einfügen
-    pdf.chapter_title("Hilbert phase discontinuity")
-    pdf.add_image(im_path1, w=pdf.w - 20)
+    pdf.chapter_title("Hilbert phase estimation")
+    pdf.add_image(im_path, w=pdf.w - 20)
     pdf.chapter_body(
-        "The Plot shows the phase diagram of the input signal. The phase is estimated via instantaneous hilbert phase estimation."
+        "The Plot shows the phase diagram of the input signal. The phase is estimated via instantaneous Hilbert phase estimation."
     )
-    pdf.chapter_body_with_bold("\033[1mNo phase discontinuity is detected.\033[0m")
-
-    pdf.add_page()
-    pdf.chapter_title("DFT0 phase discontinuity")
-    pdf.add_image(im_path2, w=pdf.w - 20)
-    pdf.chapter_body(
-        "The Plot shows the phase diagram of the input signal. The phase is estimated via instantaneous DFT0 phase estimation."
-    )
-    pdf.chapter_body_with_bold("\033[1mNo phase discontinuity is detected.\033[0m")
+    pdf.chapter_body_with_bold("\033[1mThe Audio shows no discontinuities in its phase\033[0m")
 
     # PDF speichern
     pdf.output(outpath)
     print(f"Results pdf saved at {os.path.normpath(outpath)}")
+
+
+def plot_func(x_hilbert, x_hilbert_new, hilbert_phases, hilbert_phases_new, hil_interest_region):
+
+    # Create the phase plots
+    # TODO: Paths in config or as terminal arguments
+    root_path = os.path.join(os.path.dirname(__file__), "../reports")
+    hilbert_phase_path = f"{root_path}/figures/hilbert_phase_im.png"
+    pdf_outpath = f"{root_path}/enfify_alpha.pdf"
+
+    if not np.any(hil_interest_region):
+        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
+        to_alpha_pdf(hilbert_phase_path, pdf_outpath)
+
+    else:
+        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
+
+        cut_hil_phase_paths = []
+        for i in range(len(hil_interest_region)):
+            cut_hil_phase_paths.append(f"{root_path}/figures/{i}cut_hilbert_phase_im.png")
+
+            create_cut_phase_plot(
+                x_hilbert_new[i],
+                hilbert_phases_new[i],
+                x_hilbert,
+                hil_interest_region[i],
+                cut_hil_phase_paths[i],
+            )
+        
+        cut_to_alpha_pdf(hilbert_phase_path, cut_hil_phase_paths, pdf_outpath)

@@ -3,11 +3,11 @@ import os
 import yaml
 import typer
 from enfify.enf_enhancement import VMD, RFA
-from enfify.enf_estimation import segmented_phase_estimation_DFT0, segmented_phase_estimation_hilbert
+from enfify.enf_estimation import segmented_phase_estimation_hilbert
 from enfify.preprocessing import bandpass_filter, downsampling_alpha
 from enfify.rodriguez_audio_authenticity import find_cut_in_phases
 from enfify.utils import add_defaults, read_wavfile
-from enfify.visualization import create_cut_phase_plot, create_phase_plot, cut_to_alpha_pdf, to_alpha_pdf
+from enfify.visualization import plot_func
 
 # CONSTANTS
 app = typer.Typer()
@@ -121,70 +121,12 @@ def main(sig, fs, config):
     hilbert_phases = segmented_phase_estimation_hilbert(sig, fs, num_cycles, nom_enf)
     x_hilbert = np.linspace(0.0, time, len(hilbert_phases))
 
-    # DFT0 instantaneous phase estimation
-    phases = segmented_phase_estimation_DFT0(sig, fs, num_cycles, n_dft, nom_enf)
-    x_DFT0 = np.linspace(0.0, time, len(phases))
-
     hilbert_phases_new, x_hilbert_new, hil_interest_region = find_cut_in_phases(
         hilbert_phases, x_hilbert
     )
-    
-    DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(phases, x_DFT0)
 
-    # Create the phase plots
-    # TODO: Paths in config or as terminal arguments
-    root_path = os.path.join(os.path.dirname(__file__), "../reports")
-    hilbert_phase_path = f"{root_path}/figures/hilbert_phase_im.png"
-    hilbert_cut_phase_path = f"{root_path}/figures/cut_hilbert_phase_im.png"
-    DFT0_phase_path = f"{root_path}/figures/DFT0_phase_im.png"
-    DFT0_cut_phase_path = f"{root_path}/figures/cut_DFT0_phase_im.png"
-    pdf_outpath = f"{root_path}/enfify_alpha.pdf"
+    plot_func(x_hilbert, x_hilbert_new, hilbert_phases, hilbert_phases_new, hil_interest_region)
 
-    if not np.any(hil_interest_region) and not np.any(DFT0_interest_region):
-        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        to_alpha_pdf(hilbert_phase_path, hilbert_phase_path, pdf_outpath)
-
-    elif not np.any(hil_interest_region) and np.any(DFT0_interest_region):
-        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        create_cut_phase_plot(
-            x_DFT0_new, DFT0_phases_new, x_DFT0, DFT0_interest_region[0], DFT0_cut_phase_path
-        )
-        to_alpha_pdf(hilbert_phase_path, DFT0_cut_phase_path, pdf_outpath)
-
-    elif np.any(hil_interest_region) and not np.any(DFT0_interest_region):
-        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_cut_phase_plot(
-            x_hilbert_new,
-            hilbert_phases_new,
-            x_hilbert,
-            hil_interest_region[0],
-            hilbert_cut_phase_path,
-        )
-        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        to_alpha_pdf(hilbert_cut_phase_path, DFT0_phase_path, pdf_outpath)
-
-    else:
-        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_cut_phase_plot(
-            x_hilbert_new,
-            hilbert_phases_new,
-            x_hilbert,
-            hil_interest_region[0],
-            hilbert_cut_phase_path,
-        )
-
-        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        create_cut_phase_plot(
-            x_DFT0_new,
-            DFT0_phases_new,
-            x_DFT0,
-            DFT0_interest_region[0],
-            DFT0_cut_phase_path,
-        )
-
-        cut_to_alpha_pdf(hilbert_cut_phase_path, DFT0_cut_phase_path, pdf_outpath)
 
 if __name__ == "__main__":
     app()

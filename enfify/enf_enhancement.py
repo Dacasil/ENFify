@@ -17,7 +17,7 @@ from numba import jit, prange
 
 
 # ...........................RFA................................#
-
+'''
 @jit(nopython=True)
 def z_SFM(sig, n, fs, alpha, tau):
     """Computes the z_SFM value with JIT optimization."""
@@ -59,7 +59,7 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
     tau_values = np.arange(1, tau + 1)
     tau_dash_values = tau_values + int(np.round(fs / (4 * estimated_enf)))
 
-    for k in range(var_I):
+    for k in tqdm(range(var_I)):
         denoised_sig = np.zeros(Nx)
 
         denoised_sig = rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values)
@@ -75,19 +75,81 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
         repeat_counts[:remainder] += 1
         new_freqs = np.repeat(peak_freqs, repeat_counts)
 
-        plt.figure(figsize=(10, 4))
-        plt.plot(new_freqs, color="red")
-        plt.title('Downsampled noisy tone')
-        plt.xlabel('Sample Index')
-        plt.ylabel('Amplitude')
-        plt.grid()
-        plt.show()
+        f_diff = new_freqs - f_start
+        f_start = new_freqs
+
+        val = np.sum(f_diff ** 2) / np.sum(f_start ** 2)
+
+        if val <= epsilon:
+            return denoised_sig
+        
+        sig = denoised_sig  # Update the signal for the next iteration
+
+    return denoised_sig
+'''
+
+
+@jit(nopython=True, fastmath=True)
+def z_SFM(sig, n, fs, alpha, tau):
+    """Computes the z_SFM value with JIT optimization."""
+    sum_sig = np.sum(sig[n-tau:n+tau+1])
+    z = np.exp(1j * 2 * np.pi * (1 / fs) * alpha * sum_sig)
+    return z
+
+@jit(nopython=True, parallel=True, fastmath=True)
+def kernel_function(sig, f, n, fs, alpha, tau_values, tau_dash_values):
+    """Computes the kernel function using JIT and vectorized operations."""
+    auto_corr = np.empty(len(tau_values), dtype=np.complex128)
+    auto_corr_dash = np.empty(len(tau_dash_values), dtype=np.complex128)
+    
+    for i in range(len(tau_values)):
+        auto_corr[i] = z_SFM(sig, n, fs, alpha, tau_values[i])
+        auto_corr_dash[i] = z_SFM(sig, n, fs, alpha, tau_dash_values[i])
+    
+    sin_vals = np.sin(2 * np.pi * (1 / fs) * f * tau_values)
+    cos_vals = np.cos(2 * np.pi * (1 / fs) * f * tau_values)
+    
+    # Precompute exponents to save time in kernel calculation
+    kernel = (auto_corr ** sin_vals) * (auto_corr_dash ** cos_vals)
+    return np.angle(kernel)
+
+@jit(nopython=True, parallel=True, fastmath=True)
+def rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values):
+    for n in prange(Nx - 1):
+        f = f_start[n]
+        kernel_phases = kernel_function(sig, f, n, fs, alpha, tau_values, tau_dash_values)
+        denoised_sig[n] = np.sum(kernel_phases) / ((tau + 1) * tau * np.pi * alpha)
+
+    return denoised_sig
+
+def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
+    """Optimized Recursive Frequency Adaptation algorithm with partial JIT optimization."""
+    Nx = len(sig)
+    alpha = 1 / (4 * fs * np.max(sig))
+    f_start = estimated_enf * np.ones(Nx)
+    tau_values = np.arange(1, tau + 1)
+    tau_dash_values = tau_values + int(np.round(fs / (4 * estimated_enf)))
+
+    for k in tqdm(range(var_I)):
+        denoised_sig = np.zeros(Nx)
+
+        denoised_sig = rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values)
+
+        # Peak frequency estimation
+        peak_freqs = segmented_freq_estimation_DFT1(
+            denoised_sig, fs, num_cycles=100, N_DFT=20_000, nominal_enf=estimated_enf
+        )
+
+        base_repeats = Nx // len(peak_freqs)
+        remainder = Nx % len(peak_freqs)
+        repeat_counts = np.full(len(peak_freqs), base_repeats)
+        repeat_counts[:remainder] += 1
+        new_freqs = np.repeat(peak_freqs, repeat_counts)
 
         f_diff = new_freqs - f_start
         f_start = new_freqs
 
         val = np.sum(f_diff ** 2) / np.sum(f_start ** 2)
-        print(val)
 
         if val <= epsilon:
             return denoised_sig

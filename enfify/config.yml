@@ -1,19 +1,30 @@
 # # Configuration file for ENFify - Audio Tampering Detection Tool
 # # Same as defaults.yml. If a value is missing or null, the default value will be used.
+
+nominal_enf: 100.0    # Expected ENF frequency in Hz
+
 downsample:
-  is_enabled: false
-  downsampling_frequency: 400
+  is_enabled: true
+  downsampling_frequency: 1000
 
 # Bandpass Filter Configuration
 bandpassfilter:
   is_enabled: true
-  lowcut: 49.5    # Low cut frequency in Hz
-  highcut: 50.5   # High cut frequency in Hz
+  lowcut: 99.5      # Low cut frequency in Hz
+  highcut: 100.5    # High cut frequency in Hz
+
+# Robust Filtering Algorithm (RFA) Configuration
+RFA: 
+  is_enabled: true
+  f0: 100                   # estimated frequency (here ENF second harmonic)     
+  I: 10                      # Number of RFA repeats
+  tau: 1000                # RFA winoow size
+  epsilon: !!float 1e-20    # Noise-tolerance (no strict fidelity enforcement)
 
 VMD: 
   is_enabled: false
-  alpha: 2000            # Balancing parameter of the data-fidelity constraint
-  tau: 0                 # Noise-tolerance (no strict fidelity enforcement)
-  n_mode: 1             # Number of modes to be recovered
-  DC: false              # True if the first mode is to be DC (0-freq)
-  tol: !!float 1e-7              # Tolerance of convergence criterion
+  alpha: 5000          # Balancing parameter of the data-fidelity constraint
+  tau: 0               # Noise-tolerance (no strict fidelity enforcement)
+  n_mode: 2            # Number of modes to be recovered
+  DC: false            # True if the first mode is to be DC (0-freq)
+  tol: !!float 1e-7    # Tolerance of convergence criterion
