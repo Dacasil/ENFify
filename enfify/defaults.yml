@@ -20,7 +20,15 @@ VMD:
   tau: 0                 # Noise-tolerance (no strict fidelity enforcement)
   n_mode: 1              # Number of modes to be recovered
   DC: 0
-  tol: !!float 1e-7      # Tolerance of convergence criterion
+  tol: !!float 1e-20      # Tolerance of convergence criterion
+
+# Robust Filtering Algorithm (RFA) Configuration
+RFA: 
+  is_enabled: false
+  f0: 100                     # estimated frequency (here ENF second harmonic)     
+  I: 3                        # Number of RFA repeats
+  tau: 2500                   # RFA winoow size
+  epsilon: !!float 1e-20      # Noise-tolerance (no strict fidelity enforcement)
 
 # Phase Estimation Configuration
 phase_estimation:
