@@ -1,7 +1,6 @@
 """Module for ENF frequency and phase estimation"""
 
 import math
-
 import numpy as np
 import scipy.signal as signal
 from scipy.fft import fft
@@ -329,7 +328,7 @@ def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
         _type_: _description_
     """
 
-    window_type = "hamming"
+    window_type = "hann"
 
     step_size = int(f_s // nominal_enf)
 
@@ -353,6 +352,44 @@ def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
     phases = np.array(phases)
 
     return phases
+
+def segmented_freq_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
+    """_summary_
+
+    Args:
+        s_in (_type_): _description_
+        f_s (_type_): _description_
+        num_cycles (_type_): _description_
+        nominal_enf (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    window_type = "hamming"
+
+    step_size = int(f_s // nominal_enf)
+
+    num_blocks = len(s_in) // step_size - (num_cycles - 1)
+
+    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
+
+    freqs = []
+
+    for i in range(len(segments)):
+
+        M = len(segments[i])
+        window = get_window(window_type, M)
+        hann_segment = segments[i] * window
+
+        freq = hilbert_instantaneous_freq(hann_segment, f_s)
+        freq = np.mean(freq)
+        freqs.append(freq)
+
+    freqs = np.unwrap(freqs)
+    freqs = np.array(freqs)
+
+    return freqs
 
 
 # Instantaneous phase estimation via scipy

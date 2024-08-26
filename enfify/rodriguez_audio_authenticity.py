@@ -10,7 +10,6 @@ from sklearn.metrics import roc_curve
 
 # ..........................Feature Estimation.........................#
 
-
 def feature(phases):
     """_summary_
 
@@ -27,7 +26,6 @@ def feature(phases):
 
 
 # ..........................Lambda.........................#
-
 
 def Lambda(uncut_F, cut_F):
     """_summary_
@@ -88,7 +86,7 @@ def find_cut_in_phases(phases, x):
     second_der = np.gradient(np.gradient(phases, x), x)
 
     z_scores = np.abs(stats.zscore(second_der))
-    outliers = np.array(np.where(z_scores > 3))
+    outliers = np.array(np.where(z_scores > 5))
 
     if not np.any(outliers):
         return phases, x, outliers
@@ -122,10 +120,15 @@ def find_cut_in_phases(phases, x):
         if not np.any(discontinuities):
             return phases, x, discontinuities
 
-        start = discontinuities[0][0]
-        end = discontinuities[0][1]
+        phases_new = []
+        x_new = []
 
-        phases_new = phases[int(start) - 200 : int(end) + 200]
-        x_new = x[int(start) - 200 : int(end) + 200]
+        for i in range(len(discontinuities)):
+            start = discontinuities[i][0]
+            end = discontinuities[i][1]
+
+            phases_new.append(phases[int(start) - 200 : int(end) + 200])
+            x_new.append(x[int(start) - 200 : int(end) + 200])
+
 
         return phases_new, x_new, discontinuities
