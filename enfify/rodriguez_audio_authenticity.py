@@ -1,5 +1,9 @@
 """Methods for the Audio Authenticity algorithm from the Rodriguez Paper."""
 
+# TODO: In andere Module integrieren, da dieses nach Quelle klassifiziert ist,
+# wir aber nach Schritten im Workflow klassifizieren wollen. Vermutlich kann
+# das Meiste in enfify.analyses gehen.
+
 import numpy as np
 from scipy import stats
 from sklearn.metrics import roc_curve
