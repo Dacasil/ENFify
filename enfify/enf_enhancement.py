@@ -3,43 +3,40 @@
 # TODO: Add paper DOI links in docstrings of functions.
 
 import numpy as np
-import cmath
 import math
-
-import numpy as np
-from .enf_estimation import segmented_freq_estimation_DFT1
-from scipy.fft import fft
-from scipy.signal import windows
+from enfify.enf_estimation import segmented_freq_estimation_DFT1
 from tqdm import tqdm
-from scipy.signal import get_window
 from numba import jit, prange
 
 
 # ...........................RFA................................#
 
+
 @jit(nopython=True, fastmath=True)
 def z_SFM(sig, n, fs, alpha, tau):
     """Computes the z_SFM value with JIT optimization."""
-    sum_sig = np.sum(sig[n-tau:n+tau+1])
+    sum_sig = np.sum(sig[n - tau : n + tau + 1])
     z = np.exp(1j * 2 * np.pi * (1 / fs) * alpha * sum_sig)
     return z
+
 
 @jit(nopython=True, parallel=True, fastmath=True)
 def kernel_function(sig, f, n, fs, alpha, tau_values, tau_dash_values):
     """Computes the kernel function using JIT and vectorized operations."""
     auto_corr = np.empty(len(tau_values), dtype=np.complex128)
     auto_corr_dash = np.empty(len(tau_dash_values), dtype=np.complex128)
-    
+
     for i in range(len(tau_values)):
         auto_corr[i] = z_SFM(sig, n, fs, alpha, tau_values[i])
         auto_corr_dash[i] = z_SFM(sig, n, fs, alpha, tau_dash_values[i])
-    
+
     sin_vals = np.sin(2 * np.pi * (1 / fs) * f * tau_values)
     cos_vals = np.cos(2 * np.pi * (1 / fs) * f * tau_values)
-    
+
     # Precompute exponents to save time in kernel calculation
-    kernel = (auto_corr ** sin_vals) * (auto_corr_dash ** cos_vals)
+    kernel = (auto_corr**sin_vals) * (auto_corr_dash**cos_vals)
     return np.angle(kernel)
+
 
 @jit(nopython=True, parallel=True, fastmath=True)
 def rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values):
@@ -49,6 +46,7 @@ def rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values
         denoised_sig[n] = np.sum(kernel_phases) / ((tau + 1) * tau * np.pi * alpha)
 
     return denoised_sig
+
 
 def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
     """Optimized Recursive Frequency Adaptation algorithm with partial JIT optimization."""
@@ -61,7 +59,9 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
     for k in tqdm(range(var_I)):
         denoised_sig = np.zeros(Nx)
 
-        denoised_sig = rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values)
+        denoised_sig = rfa_kernel_phases(
+            sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values
+        )
 
         # Peak frequency estimation
         peak_freqs = segmented_freq_estimation_DFT1(
@@ -77,11 +77,11 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
         f_diff = new_freqs - f_start
         f_start = new_freqs
 
-        val = np.sum(f_diff ** 2) / np.sum(f_start ** 2)
+        val = np.sum(f_diff**2) / np.sum(f_start**2)
 
         if val <= epsilon:
             return denoised_sig
-        
+
         sig = denoised_sig  # Update the signal for the next iteration
 
     return denoised_sig

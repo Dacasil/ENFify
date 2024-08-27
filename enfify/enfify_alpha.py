@@ -1,5 +1,4 @@
 import numpy as np
-import os
 import yaml
 import typer
 from loguru import logger
@@ -14,6 +13,7 @@ from enfify.visualization import plot_func
 
 # CONSTANTS
 app = typer.Typer()
+
 
 # FUNCTIONS
 @app.command()
@@ -87,12 +87,11 @@ def main(sig, fs, config):
     rfa_config = config["RFA"]
     if rfa_config["is_enabled"]:
         f0 = rfa_config["f0"]
-        I = rfa_config["I"]
+        loops = rfa_config["I"]
         tau = rfa_config["tau"]
-        epsilon = rfa_config["epsilon"] 
+        epsilon = rfa_config["epsilon"]
 
-        sig = RFA(sig, fs, tau, epsilon, I, f0)
-
+        sig = RFA(sig, fs, tau, epsilon, loops, f0)
 
     # ENF ANALYSIS
 

@@ -353,6 +353,7 @@ def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
 
     return phases
 
+
 def segmented_freq_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
     """_summary_
 
