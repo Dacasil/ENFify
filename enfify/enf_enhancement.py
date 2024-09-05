@@ -17,29 +17,32 @@ from numba import jit, prange
 
 # ...........................RFA................................#
 
+
 @jit(nopython=True, fastmath=True)
 def z_SFM(sig, n, fs, alpha, tau):
     """Computes the z_SFM value with JIT optimization."""
-    sum_sig = np.sum(sig[n-tau:n+tau+1])
+    sum_sig = np.sum(sig[n - tau : n + tau + 1])
     z = np.exp(1j * 2 * np.pi * (1 / fs) * alpha * sum_sig)
     return z
+
 
 @jit(nopython=True, parallel=True, fastmath=True)
 def kernel_function(sig, f, n, fs, alpha, tau_values, tau_dash_values):
     """Computes the kernel function using JIT and vectorized operations."""
     auto_corr = np.empty(len(tau_values), dtype=np.complex128)
     auto_corr_dash = np.empty(len(tau_dash_values), dtype=np.complex128)
-    
+
     for i in range(len(tau_values)):
         auto_corr[i] = z_SFM(sig, n, fs, alpha, tau_values[i])
         auto_corr_dash[i] = z_SFM(sig, n, fs, alpha, tau_dash_values[i])
-    
+
     sin_vals = np.sin(2 * np.pi * (1 / fs) * f * tau_values)
     cos_vals = np.cos(2 * np.pi * (1 / fs) * f * tau_values)
-    
+
     # Precompute exponents to save time in kernel calculation
-    kernel = (auto_corr ** sin_vals) * (auto_corr_dash ** cos_vals)
+    kernel = (auto_corr**sin_vals) * (auto_corr_dash**cos_vals)
     return np.angle(kernel)
+
 
 @jit(nopython=True, parallel=True, fastmath=True)
 def rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values):
@@ -49,6 +52,7 @@ def rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values
         denoised_sig[n] = np.sum(kernel_phases) / ((tau + 1) * tau * np.pi * alpha)
 
     return denoised_sig
+
 
 def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
     """Optimized Recursive Frequency Adaptation algorithm with partial JIT optimization."""
@@ -61,7 +65,9 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
     for k in tqdm(range(var_I)):
         denoised_sig = np.zeros(Nx)
 
-        denoised_sig = rfa_kernel_phases(sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values)
+        denoised_sig = rfa_kernel_phases(
+            sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values
+        )
 
         # Peak frequency estimation
         peak_freqs = segmented_freq_estimation_DFT1(
@@ -77,11 +83,11 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
         f_diff = new_freqs - f_start
         f_start = new_freqs
 
-        val = np.sum(f_diff ** 2) / np.sum(f_start ** 2)
+        val = np.sum(f_diff**2) / np.sum(f_start**2)
 
         if val <= epsilon:
             return denoised_sig
-        
+
         sig = denoised_sig  # Update the signal for the next iteration
 
     return denoised_sig
@@ -226,3 +232,106 @@ def VMD(signal, alpha, tau, num_modes, enforce_DC, tolerance):
         mode_spectra_final[:, mode] = np.fft.fftshift(np.fft.fft(modes[mode, :]))
 
     return modes, mode_spectra_final, final_freq_centers
+
+
+# ...................................Maximum Likelyhood estimator...................................#
+
+
+def stft_search(sig, fs, win_dur, step_dur, fc, bnd, fft_fac):
+    win_len = int(win_dur * fs)
+    win_func = windows.boxcar(win_len)
+    step = int(step_dur * fs)
+    NFFT = int(fft_fac * fs)
+
+    win_pos = np.arange(0, len(sig) - win_len + 1, step)
+    IF = np.zeros(len(win_pos))
+
+    # Set search region
+    search_1st = np.arange(round((50 - bnd[0] / 2) * fft_fac), round((50 + bnd[0] / 2) * fft_fac))
+    len_band = len(search_1st)
+    search_reg = np.kron(search_1st, (fc / 50)).astype(int)
+
+    # Search loop
+    for i, pos in enumerate(win_pos):
+        temp_fft = fft(sig[pos : pos + win_len] * win_func, n=NFFT)
+        half_fft = temp_fft[: NFFT // 2]
+        abs_half_fft = np.abs(half_fft)
+
+        fbin_cand = abs_half_fft[search_reg]
+        fbin_cand = fbin_cand.reshape((len(fc), len_band))
+        weighted_fbin = np.sum(fbin_cand**2, axis=0)
+        max_val = np.max(weighted_fbin)
+        peak_loc = search_1st[np.where(weighted_fbin == max_val)[0][0]]
+        IF[i] = peak_loc * fs / NFFT * 2
+
+    norm_fc = 100
+    norm_bnd = 100 * bnd[0] / fc[0]
+    IF[IF < norm_fc - norm_bnd] = norm_fc - norm_bnd
+    IF[IF > norm_fc + norm_bnd] = norm_fc + norm_bnd
+
+    return IF
+
+
+def func_STFT_multi_tone_search_weighted(
+    signal, fs, window_dur, step_size_dur, fc, bound, FFT_res_factor
+):
+    window_length = int(window_dur * fs)
+    window_func = get_window("boxcar", window_length)
+    step_size = int(step_size_dur * fs)
+    NFFT = int(FFT_res_factor * fs)
+    window_pos = np.arange(0, len(signal) - window_length + 1, step_size)
+    IF = np.zeros(len(window_pos))  # output IF without interpolation
+
+    # Set bandwidth to estimate local SNR according to [2]
+    band_low_signal_1st = round(49.98 * FFT_res_factor)
+    band_high_signal_1st = round(50.02 * FFT_res_factor)  # signal band: 49.98~50.02 Hz
+    band_low_noise_1st = round(49.9 * FFT_res_factor)
+    band_high_noise_1st = round(
+        50.1 * FFT_res_factor
+    )  # noise band: 49.9~50.1 Hz excluding signal band
+
+    weights = np.zeros(len(fc))
+
+    # Set harmonic search region
+    search_region_1st = np.arange(
+        round((50 - bound[0] / 2) * FFT_res_factor), round((50 + bound[0] / 2) * FFT_res_factor)
+    )
+    length_per_band = len(search_region_1st)
+    search_region = np.kron(search_region_1st, (fc / 50)).astype(int)
+
+    # Search loop
+    for i, pos in enumerate(window_pos):
+        temp = np.fft.fft(signal[pos : pos + window_length] * window_func, NFFT)
+        HalfTempFFT = temp[: NFFT // 2]
+        absHalfTempFFT = np.abs(HalfTempFFT)
+
+        # Calculate weights for each harmonic component according to [2]
+        for j in range(len(fc)):
+            signal_component = absHalfTempFFT[
+                band_low_signal_1st * (fc[j] // 50) : band_high_signal_1st * (fc[j] // 50)
+            ]
+            signal_plus_noise = absHalfTempFFT[
+                band_low_noise_1st * (fc[j] // 50) : band_high_noise_1st * (fc[j] // 50)
+            ]
+            weights[j] = np.linalg.norm(signal_component) ** 2 / (
+                np.linalg.norm(signal_plus_noise) ** 2 - np.linalg.norm(signal_component) ** 2
+            )
+
+        weights = weights / np.linalg.norm(weights)
+        fbin_candidate = absHalfTempFFT[search_region]
+        fbin_candidate = np.diag(weights) @ fbin_candidate.reshape(len(fc), length_per_band)
+        weighted_fbin = np.sum(
+            fbin_candidate**2, axis=0
+        )  # harmonically weighted frequency bin energy
+        ValueMax = np.max(weighted_fbin)
+        PeakLoc = search_region_1st[np.argmax(weighted_fbin)]
+        IF[i] = (
+            PeakLoc * fs / NFFT * 2
+        )  # (one sample shift compensated, location no need to "- 1")
+
+    norm_fc = 100
+    norm_bound = 100 * bound[0] / fc[0]
+    IF[IF < norm_fc - norm_bound] = norm_fc - norm_bound
+    IF[IF > norm_fc + norm_bound] = norm_fc + norm_bound
+
+    return IF, weights
