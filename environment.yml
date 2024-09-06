@@ -26,3 +26,5 @@ dependencies:
     - pydub
     - selenium
     - fpdf
+    - numba
+    - ffmpeg-python

@@ -1,15 +1,15 @@
-import os
-
-# import argparse
 import numpy as np
-import typer
 import yaml
-from .enf_enhancement import VariationalModeDecomposition
-from .enf_estimation import segmented_phase_estimation_DFT0, segmented_phase_estimation_hilbert
-from .preprocessing import bandpass_filter, downsampling_alpha
-from .rodriguez_audio_authenticity import find_cut_in_phases
-from .utils import add_defaults, read_wavfile
-from .visualization import create_cut_phase_plot, create_phase_plot, cut_to_alpha_pdf, to_alpha_pdf
+import typer
+from loguru import logger
+
+from enfify.config import ENFIFY_DIR
+from enfify.enf_enhancement import VMD, RFA
+from enfify.enf_estimation import segmented_phase_estimation_hilbert
+from enfify.preprocessing import bandpass_filter, downsample_scipy
+from enfify.rodriguez_audio_authenticity import find_cut_in_phases
+from enfify.utils import add_defaults, read_wavfile
+from enfify.visualization import plot_func
 
 # CONSTANTS
 app = typer.Typer()
@@ -31,10 +31,10 @@ def frontend(
 
     Args:
         audio_file_path: The path of the audio file to process.
-        config_file_path: The path to the config file.
+        config_path: The path of the configuration file to use.
     """
 
-    print(f"Processing audio file: {audio_file_path}")
+    logger.info(f"Processing audio file: {audio_file_path}")
 
     # Load config and defaults
     if config_path is not None:
@@ -42,7 +42,7 @@ def frontend(
             config = yaml.safe_load(f) or {}
     else:
         config = {}
-    defaults_path = os.path.join(os.path.dirname(__file__), "defaults.yml")
+    defaults_path = ENFIFY_DIR / "defaults.yml"
     with open(defaults_path, "r") as f:
         defaults = yaml.safe_load(f)
     add_defaults(config, defaults)
@@ -50,6 +50,7 @@ def frontend(
     # Read data
     sig, fs = read_wavfile(audio_file_path)
 
+    # Process data with the loaded configuration
     main(sig, fs, config)
 
 
@@ -61,7 +62,7 @@ def main(sig, fs, config):
     if downsample_config["is_enabled"]:
         f_ds = downsample_config["downsampling_frequency"]
 
-        sig, fs = downsampling_alpha(sig, fs, f_ds)
+        sig, fs = downsample_scipy(sig, fs, f_ds)
 
     # Bandpass Filter
     bandpass_config = config["bandpassfilter"]
@@ -79,8 +80,18 @@ def main(sig, fs, config):
         DC = vmd_config["DC"]
         tol = vmd_config["tol"]
 
-        u_clean, _, _ = VariationalModeDecomposition(sig, alpha, tau, n_mode, DC, tol)
+        u_clean, _, _ = VMD(sig, alpha, tau, n_mode, DC, tol)
         sig = u_clean[0]
+
+    # Robust Filtering Algorithm
+    rfa_config = config["RFA"]
+    if rfa_config["is_enabled"]:
+        f0 = rfa_config["f0"]
+        loops = rfa_config["I"]
+        tau = rfa_config["tau"]
+        epsilon = rfa_config["epsilon"]
+
+        sig = RFA(sig, fs, tau, epsilon, loops, f0)
 
     # ENF ANALYSIS
 
@@ -89,7 +100,6 @@ def main(sig, fs, config):
 
     phase_config = config["phase_estimation"]
     num_cycles = phase_config["num_cycles"]
-    n_dft = phase_config["n_dft"]
 
     time = len(sig) / fs
 
@@ -97,70 +107,11 @@ def main(sig, fs, config):
     hilbert_phases = segmented_phase_estimation_hilbert(sig, fs, num_cycles, nom_enf)
     x_hilbert = np.linspace(0.0, time, len(hilbert_phases))
 
-    # DFT0 instantaneous phase estimation
-    phases = segmented_phase_estimation_DFT0(sig, fs, num_cycles, n_dft, nom_enf)
-    x_DFT0 = np.linspace(0.0, time, len(phases))
-
     hilbert_phases_new, x_hilbert_new, hil_interest_region = find_cut_in_phases(
         hilbert_phases, x_hilbert
     )
 
-    DFT0_phases_new, x_DFT0_new, DFT0_interest_region = find_cut_in_phases(phases, x_DFT0)
-
-    # Create the phase plots
-    # TODO: Paths in config or as terminal arguments
-    root_path = os.path.join(os.path.dirname(__file__), "../reports")
-    hilbert_phase_path = f"{root_path}/figures/hilbert_phase_im.png"
-    hilbert_cut_phase_path = f"{root_path}/figures/cut_hilbert_phase_im.png"
-    DFT0_phase_path = f"{root_path}/figures/DFT0_phase_im.png"
-    DFT0_cut_phase_path = f"{root_path}/figures/cut_DFT0_phase_im.png"
-    pdf_outpath = f"{root_path}/enfify_alpha.pdf"
-
-    if not np.any(hil_interest_region) and not np.any(DFT0_interest_region):
-        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        to_alpha_pdf(hilbert_phase_path, hilbert_phase_path, pdf_outpath)
-
-    elif not np.any(hil_interest_region) and np.any(DFT0_interest_region):
-        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        create_cut_phase_plot(
-            x_DFT0_new, DFT0_phases_new, x_DFT0, DFT0_interest_region, DFT0_cut_phase_path
-        )
-        to_alpha_pdf(hilbert_phase_path, DFT0_cut_phase_path, pdf_outpath)
-
-    elif np.any(hil_interest_region) and not np.any(DFT0_interest_region):
-        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_cut_phase_plot(
-            x_hilbert_new,
-            hilbert_phases_new,
-            x_hilbert,
-            hil_interest_region,
-            hilbert_cut_phase_path,
-        )
-        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        to_alpha_pdf(hilbert_cut_phase_path, DFT0_phase_path, pdf_outpath)
-
-    else:
-        create_phase_plot(x_hilbert, hilbert_phases, hilbert_phase_path)
-        create_cut_phase_plot(
-            x_hilbert_new,
-            hilbert_phases_new,
-            x_hilbert,
-            hil_interest_region,
-            hilbert_cut_phase_path,
-        )
-
-        create_phase_plot(x_DFT0, phases, DFT0_phase_path)
-        create_cut_phase_plot(
-            x_DFT0_new,
-            DFT0_phases_new,
-            x_DFT0,
-            DFT0_interest_region,
-            DFT0_cut_phase_path,
-        )
-
-        cut_to_alpha_pdf(hilbert_cut_phase_path, DFT0_cut_phase_path, pdf_outpath)
+    plot_func(x_hilbert, x_hilbert_new, hilbert_phases, hilbert_phases_new, hil_interest_region)
 
 
 if __name__ == "__main__":

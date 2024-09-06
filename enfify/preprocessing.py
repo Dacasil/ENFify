@@ -2,103 +2,98 @@
 
 import os
 import re
-import subprocess
+import tempfile
 
+import ffmpeg
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as signal
+from loguru import logger
 from scipy.io import wavfile
-from .utils import read_wavfile
+from scipy.signal import butter, decimate, lfilter, resample
+
+# from enfify.utils import read_wavfile
 
 # .................Downsampling and bandpass filter.................#
 
 
-def downsampling_python(s_raw, f_s, f_ds=1_000):
-    """Downsampling of numpy array via python
+def downsample_scipy(sig, sample_rate, downsample_rate):
+    """Downsample a numpy array using scipy, with antialiasing.
 
     Args:
-        s_raw (Numpy array):raw signal
-        f_s (int or float): current sampling freq
-        f_ds (int or float, optional): downsampling sampling freq
-
-    Raises:
-        ValueError: _description_
+        sig (numpy.ndarray): Raw signal.
+        sample_rate (int or float): Current sampling frequency.
+        downsample_rate (int or float): Target sampling frequency.
 
     Returns:
-        _type_: _description_
+        numpy.ndarray: Downsampled signal.
+        float: New sampling frequency.
     """
-    if f_s % f_ds == 0:
-        downsample_factor = f_s // f_ds
-        s_ds = signal.decimate(s_raw, downsample_factor)
+
+    if downsample_rate <= 0:
+        raise ValueError("Target sampling rate must be greater than 0.")
+
+    if downsample_rate >= sample_rate:
+        logger.warning(
+            "Not downsampling since the target sampling rate is greater than the current sampling rate."
+        )
+        return sig, sample_rate
+
+    if sample_rate % downsample_rate == 0:
+        # If the target sampling rate is an integer multiple of the original rate
+        decimation_factor = int(sample_rate // downsample_rate)
+        return decimate(sig, decimation_factor), downsample_rate  # Antialiasing is integrated here
     else:
-        nearest_downsample_factor = round(f_s / f_ds)
-        new_sample_rate = f_s // nearest_downsample_factor
+        # Otherwise, use resampling
+        # Log a warning about the need for an antialiasing filter
+        logger.warning(
+            "The target sampling rate is not an integer multiple of the current sampling rate. Resampling is used, which does not have an integrated antialiasing filter. Applying a lowpass filter."
+        )
 
-        if new_sample_rate == 0:
-            raise ValueError(
-                "Der berechnete Downsample-Faktor ist nicht sinnvoll. Überprüfen Sie die Eingabewerte."
-            )
-
-        s_ds = signal.decimate(s_raw, nearest_downsample_factor, ftype="fir")
-        print("Not sufficient good implemented yet")
-    return s_ds
-
-
-# def downsampling_alpha(in_file_path, out_file_path, fs_down):
-#     """Downsample a audio signal with ffmpeg to reduce numrical costs and enable signale preprocessing and denoising
-
-#     Args:
-#         in_file_path (str): Where data to downsample is stored + filename
-#         out_file_path (str): Where downsampled data to store + filename
-
-#     Returns:
-#         None
-#     """
-
-#     if platform.system() == "Windows":
-#         # Windows-specific Command
-#         conda_activate = (
-#             f"call {os.getenv('USERPROFILE')}\\miniforge3\\Scripts\\activate.bat enfify"
-#         )
-#         ffmpeg_command = f"ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
-#         os.system(f"{conda_activate} && {ffmpeg_command}")
-
-#     else:
-#         # Unix-specific Command (Linux, macOS)
-#         conda_activate = ". /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify"
-#         ffmpeg_command = f"ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
-#         os.system(f"{conda_activate} && {ffmpeg_command}")
+        # Apply a lowpass filter to ensure antialiasing
+        cutoff_frequency = downsample_rate / 2.0
+        filtered_sig = lowpass_filter(sig, cutoff_frequency, sample_rate)
+        num_samples = int(len(filtered_sig) * downsample_rate / sample_rate)
+        return resample(filtered_sig, num_samples), downsample_rate
 
 
-def downsampling_alpha(sig, fs, fs_down):
-    """
-    Downsampling for the alpha Version
+def lowpass_filter(signal, cutoff, fs, order=5):
+    """Apply a Butterworth lowpass filter for antialiasing.
 
     Args:
-        sig (): _description_
-        fs (_type_): _description_
-        fs_down (_type_): _description_
+        signal (numpy.ndarray): Input signal.
+        cutoff (float): Cutoff frequency of the filter (in Hz).
+        fs (float): Sampling frequency of the signal (in Hz).
+        order (int): Order of the filter.
 
     Returns:
-        _type_: _description_
+        numpy.ndarray: Filtered signal.
     """
-    in_file_path = "tmp.wav"  # maybe move to /tmp but not generic for windows
-    out_file_path = "tmp_down.wav"
+    nyquist = 0.5 * fs
+    normal_cutoff = cutoff / nyquist
+    b, a = butter(order, normal_cutoff, btype="low", analog=False)
+    return lfilter(b, a, signal)
 
-    wavfile.write(in_file_path, fs, sig)
 
-    # os.system(
-    #     f". /home/$USER/miniforge3/etc/profile.d/conda.sh; conda activate enfify; ffmpeg -i {in_file_path} -ar {fs_down} {out_file_path}"
-    # )
-    subprocess.run(
-        ["ffmpeg", "-i", in_file_path, "-ar", str(fs_down), out_file_path],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    sig, fs = read_wavfile(out_file_path)
-    os.remove(in_file_path)
-    os.remove(out_file_path)
-    return sig, fs
+def downsample_ffmpeg(sig, sample_rate, downsample_rate):
+    with (
+        tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as input_file,
+        tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as output_file,
+    ):
+        input_path = input_file.name
+        output_path = output_file.name
+        wavfile.write(input_path, sample_rate, sig)
+
+        ffmpeg.input(input_path).output(
+            output_path, ar=downsample_rate
+        ).overwrite_output().global_args("-loglevel", "error").run()
+
+        downsample_rate, downsampled_sig = wavfile.read(output_path)
+
+        os.remove(input_path)
+        os.remove(output_path)
+
+    return downsampled_sig, downsample_rate
 
 
 def bandpass_filter(sig, lowcut, highcut, fs, order):
