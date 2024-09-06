@@ -3,16 +3,12 @@
 # TODO: Add paper DOI links in docstrings of functions.
 
 import numpy as np
-import cmath
 import math
-
-import numpy as np
-from .enf_estimation import segmented_freq_estimation_DFT1
-from scipy.fft import fft
-from scipy.signal import windows
+from enfify.enf_estimation import segmented_freq_estimation_DFT1
 from tqdm import tqdm
-from scipy.signal import get_window
 from numba import jit, prange
+from scipy.signal import get_window, windows
+from scipy.fft import fft
 
 
 # ...........................RFA................................#
@@ -323,7 +319,7 @@ def func_STFT_multi_tone_search_weighted(
         weighted_fbin = np.sum(
             fbin_candidate**2, axis=0
         )  # harmonically weighted frequency bin energy
-        ValueMax = np.max(weighted_fbin)
+        # ValueMax = np.max(weighted_fbin)
         PeakLoc = search_region_1st[np.argmax(weighted_fbin)]
         IF[i] = (
             PeakLoc * fs / NFFT * 2
