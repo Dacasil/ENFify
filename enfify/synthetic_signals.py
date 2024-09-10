@@ -3,7 +3,6 @@ import random
 
 import numpy as np
 from scipy.stats import beta
-from tqdm import tqdm
 
 
 def generate_random_number(min_value, max_value, decimal_places):
@@ -150,7 +149,7 @@ def func_ENF_synthesis_corrupted_harmonic(
 
     # Synthesize time domain waveforms
     ENF_multi = np.zeros((N_harmonic, N))
-    for n in tqdm(range(N)):
+    for n in range(N):
         ENF_multi[:, n] = amps[:, n] * np.cos(
             2 * np.pi / fs * np.sum(enf_freqs[:, : n + 1], axis=1) + phases
         )

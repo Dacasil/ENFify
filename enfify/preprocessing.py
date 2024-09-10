@@ -158,6 +158,20 @@ def extract_number(file_name):
     return int(match.group(1)) if match else float("inf")
 
 
+def cut_extract_number(file_name):
+    """Extract number of Audio file anames to sort them
+
+    Args:
+        filenames (string)
+
+    Returns:
+        _type_: Paths + Names of cut and uncut audio files
+    """
+
+    match = re.match(r"(\d+)_cut_audio\.wav", file_name)
+    return int(match.group(1)) if match else float("inf")
+
+
 def list_files_in_directory(input_dir, output_dir):
     """File names and directory paths for donwsampling audio files with ffmpeg
 
@@ -220,7 +234,7 @@ def ffmpeg_filenames_cut(input_dir, output_dir):
         return f"Permission denied to access {input_dir}."
 
 
-# .................Cut signbal..................#
+# .................Cut signal..................#
 
 
 def cut_tones(sig, F_DS):
@@ -243,6 +257,39 @@ def cut_tones(sig, F_DS):
     cut_sig = np.concatenate((sig[:i_cut_start], sig[i_cut_end:]))
 
     return cut_sig, i_cut_start, cut_len
+
+
+def cut_signal(sig, F_DS, cut_start, cut_len):
+    """Cuts numpy arrays
+
+    Args:
+        sig (nparray): numpy array signal
+        F_DS (int or float): Sampling frequency of the signal
+
+    Returns:
+        _type_: Cut numpy array
+    """
+    cut_end = cut_start + cut_len
+    cut_sig = np.concatenate((sig[:cut_start], sig[cut_end:]))
+
+    return cut_sig
+
+
+def cut_out_signal(sig, F_DS, cut_start, cut_len):
+    """Cuts out numpy arrays
+
+    Args:
+        sig (nparray): numpy array signal
+        F_DS (int or float): Sampling frequency of the signal
+
+    Returns:
+        _type_: Cut numpy array
+    """
+
+    cut_end = cut_start + cut_len
+    cut_sig = sig[cut_start : cut_end + 1]
+
+    return cut_sig
 
 
 def cut_audio(input_file, output_file, cut_begin, cut_len):

@@ -9,6 +9,7 @@ from tqdm import tqdm
 from numba import jit, prange
 from scipy.signal import get_window, windows
 from scipy.fft import fft
+import matplotlib.pyplot as plt
 
 
 # ...........................RFA................................#
@@ -69,6 +70,13 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
         peak_freqs = segmented_freq_estimation_DFT1(
             denoised_sig, fs, num_cycles=100, N_DFT=20_000, nominal_enf=estimated_enf
         )
+
+        plt.plot(peak_freqs)
+        plt.xlabel("Cycles of nominal enf")
+        plt.ylabel("Frequency Hz")
+        plt.title("Frequency vs Time")
+        plt.grid(True)
+        plt.show()
 
         base_repeats = Nx // len(peak_freqs)
         remainder = Nx % len(peak_freqs)
