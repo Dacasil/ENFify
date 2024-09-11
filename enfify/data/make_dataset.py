@@ -2,68 +2,180 @@
 
 import io
 import os
+import shutil
+import subprocess
+import tempfile
+import zipfile
+from functools import reduce
+from pathlib import Path
 
 import numpy as np
 import requests
+from loguru import logger
 from scipy.io import wavfile
+from tqdm import tqdm
 
-from enfify.config import DATA_DIR
+from enfify.config import DATA_DIR, EXTERNAL_DATA_DIR
 from enfify.preprocessing import downsample_scipy
 from enfify.synthetic_signals import random_signal
 
 np.random.seed(42)
-SAMPLES_DIR = DATA_DIR / "samples"
 
 
-def download_whu_01():
-    url = "https://github.com/ghua-ac/ENF-WHU-Dataset/raw/78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset/H1_ref/001_ref.wav"
+def _make_samples():
+    samples_dir = DATA_DIR / "samples"
 
-    response = requests.get(url)
+    def make_whu_sample_files():
+        def download_whu_01():
+            url = "https://github.com/ghua-ac/ENF-WHU-Dataset/raw/78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset/H1_ref/001_ref.wav"
 
-    if response.status_code != 200:
-        raise Exception(f"Failed to download file. Status code: {response.status_code}")
+            response = requests.get(url)
 
-    file_bytes = io.BytesIO(response.content)
+            if response.status_code != 200:
+                raise Exception(f"Failed to download file. Status code: {response.status_code}")
 
-    sample_freq, sig = wavfile.read(file_bytes)
+            file_bytes = io.BytesIO(response.content)
 
-    return sig, sample_freq
+            sample_freq, sig = wavfile.read(file_bytes)
 
+            return sig, sample_freq
 
-def make_whu_sample_files():
-    os.makedirs(SAMPLES_DIR, exist_ok=True)
-    uncut_path = SAMPLES_DIR / "whu_uncut_min_001_ref.wav"
-    cut_path = SAMPLES_DIR / "whu_cut_min_001_ref.wav"
+        os.makedirs(samples_dir, exist_ok=True)
+        uncut_path = samples_dir / "whu_uncut_min_001_ref.wav"
+        cut_path = samples_dir / "whu_cut_min_001_ref.wav"
 
-    # downloading
-    sig, sample_freq = download_whu_01()
-    downsample_scipy(sig, sample_freq, 1_000)
-    sig = sig[: sample_freq * 60]
+        # downloading
+        sig, sample_freq = download_whu_01()
+        downsample_scipy(sig, sample_freq, 1_000)
+        sig = sig[: sample_freq * 60]
 
-    # Save uncut file
-    wavfile.write(uncut_path, sample_freq, sig)
+        # Save uncut file
+        wavfile.write(uncut_path, sample_freq, sig)
 
-    # cutting
-    location = np.random.randint(0, len(sig) - sample_freq * 10)
-    cutlen = np.random.randint(10 * sample_freq)
-    sig = np.delete(sig, slice(location, location + cutlen))
+        # cutting
+        location = np.random.randint(0, len(sig) - sample_freq * 10)
+        cutlen = np.random.randint(10 * sample_freq)
+        sig = np.delete(sig, slice(location, location + cutlen))
 
-    # Save cut file
-    wavfile.write(cut_path, sample_freq, sig)
+        # Save cut file
+        wavfile.write(cut_path, sample_freq, sig)
 
+    def make_synthetic_sample_files():
+        os.makedirs(samples_dir, exist_ok=True)
+        uncut_path = samples_dir / "synthetic_uncut_0.wav"
+        cut_path = samples_dir / "synthetic_cut_0.wav"
 
-def make_synthetic_sample_files():
-    os.makedirs(SAMPLES_DIR, exist_ok=True)
-    uncut_path = SAMPLES_DIR / "synthetic_uncut_0.wav"
-    cut_path = SAMPLES_DIR / "synthetic_cut_0.wav"
+        sig_uncut, sig_cut = random_signal(1, 60, 1_000, 50, 0.2, 10_000)
 
-    sig_uncut, sig_cut = random_signal(1, 60, 1_000, 50, 0.2, 10_000)
+        wavfile.write(uncut_path, 1_000, sig_uncut)
+        wavfile.write(cut_path, 1_000, sig_cut)
 
-    wavfile.write(uncut_path, 1_000, sig_uncut)
-    wavfile.write(cut_path, 1_000, sig_cut)
-
-
-if __name__ == "__main__":
     make_whu_sample_files()
 
     make_synthetic_sample_files()
+
+
+def download_whu_zip():
+    raise NotImplementedError(
+        "This function does not work yet because it doesn't distinguish between zip dirs and zip files properly."
+    )
+    repo_url = "https://github.com/ghua-ac/ENF-WHU-Dataset/archive/78ed7f3784949f769f291fc1cb94acd10da6322f.zip"
+    dataset_path = "ENF-WHU-Dataset-78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset"
+    extract_path = EXTERNAL_DATA_DIR / "temp_zip"
+    dataset_basename = os.path.basename(dataset_path)  # Get the basename
+
+    # Stream the request to handle large files
+    response = requests.get(repo_url, stream=True)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        total_size_in_bytes = int(response.headers.get("content-length", 0))
+        block_size = 1024  # 1 Kilobyte
+
+        # Download the file with a progress bar
+        logger.debug("Downloading the repository")
+        with io.BytesIO() as temp_file:
+            progress_bar = tqdm(total=total_size_in_bytes, unit="B", unit_scale=True)
+
+            for data in response.iter_content(block_size):
+                progress_bar.update(len(data))
+                temp_file.write(data)
+
+            progress_bar.close()
+
+            # If the progress bar didn't finish, show an error
+            if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
+                logger.error("ERROR: Something went wrong during the download")
+            else:
+                logger.debug("Download completed")
+
+            # Extract the specific folder from the downloaded ZIP
+            temp_file.seek(0)  # Move back to the start of the file
+            with zipfile.ZipFile(temp_file) as zip_file:
+                os.makedirs(extract_path, exist_ok=True)
+
+                # Extract only the specific folder with basename
+                for member in zip_file.namelist():
+                    if member.startswith(dataset_path):
+                        # Compute the relative path within the dataset
+                        relative_path = os.path.relpath(member, start=dataset_path)
+                        extract_to = os.path.join(extract_path, dataset_basename, relative_path)
+                        # Create necessary directories
+                        if member.endswith("/"):  # It's a directory
+                            os.makedirs(extract_to, exist_ok=True)
+                        else:  # It's a file
+                            os.makedirs(os.path.dirname(extract_to), exist_ok=True)
+                            # Extract file
+                            with zip_file.open(member) as source, open(extract_to, "wb") as target:
+                                shutil.copyfileobj(source, target)
+
+                logger.info(f"Folder {dataset_basename} extracted successfully to {extract_path}")
+    else:
+        logger.info(f"Failed to download the repository: {response.status_code}")
+
+
+def download_whu():
+    repo_url = "https://github.com/ghua-ac/ENF-WHU-Dataset.git"
+    commit_hash = "78ed7f3784949f769f291fc1cb94acd10da6322f"
+    specific_folders = ["ENF-WHU-Dataset/H1", "ENF-WHU-Dataset/H1_ref"]
+    specific_folders_common_base = "ENF-WHU-Dataset"
+    target_dir = EXTERNAL_DATA_DIR
+
+    # Create a temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Clone the repository with a sparse-checkout filter
+        logger.debug("Cloning repository")
+        subprocess.run(
+            ["git", "clone", "--filter=blob:none", "--sparse", repo_url, temp_dir], check=True
+        )
+
+        # Change to the temporary directory
+        os.chdir(temp_dir)
+
+        # Set up sparse-checkout
+        subprocess.run(["git", "sparse-checkout", "init"], check=True)
+
+        # Define the paths to download
+        with open(".git/info/sparse-checkout", "w") as sparse_file:
+            for specific_folder in specific_folders:
+                sparse_file.write(f"{specific_folder}/\n")
+
+        logger.debug("Fetching content")
+        subprocess.run(["git", "checkout", commit_hash], check=True)
+        logger.debug("Content fetched")
+
+        # Path to the specific folder
+        specific_folder_path = Path(temp_dir) / specific_folders_common_base
+
+        # Move the specific folder to the target directory
+        if specific_folder_path.exists():
+            shutil.move(str(specific_folder_path), str(target_dir))
+            logger.info(f"Successfully moved {specific_folder_path} to {target_dir}")
+        else:
+            logger.info(f"Folder {specific_folder_path} not found.")
+
+        # The temporary directory will be automatically deleted when the context manager ends
+
+
+if __name__ == "__main__":
+    download_whu()
