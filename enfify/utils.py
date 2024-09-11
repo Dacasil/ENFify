@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 from scipy.io import wavfile
 
@@ -46,3 +48,13 @@ def read_wavfile(file_path):
             raise Exception(f"The file has {channels} channels, which is unusual.")
     else:
         raise Exception("The structure of the audio data is unexpected.")
+
+
+def zero_pad_number_in_filename(filename, n_digits):
+    def replace_match(match):
+        number = match.group(0)
+        return number.zfill(n_digits)
+
+    new_filename = re.sub(r"\d+", replace_match, filename)
+
+    return new_filename

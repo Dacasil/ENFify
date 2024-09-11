@@ -63,9 +63,21 @@ try:
 
 
 ## Make Dataset
-.PHONY: data
-data: # requirements
+.PHONY: dataset
+dataset: # requirements
 	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) enfify/data/make_dataset.py
+
+
+## Make Augmentation
+.PHONY: augmentation
+augmentation: # requirements # MayDo dataset as requirement?
+	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) enfify/data/make_augmentation.py
+
+
+# ## Make Preprocessing
+# .PHONY: preprocessing
+# preprocessing: # requirements # MayDo augmentation as requirement?
+# 	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) # enfify/data/make_augmentation.py
 
 
 #################################################################################
