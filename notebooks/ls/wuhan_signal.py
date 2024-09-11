@@ -12,6 +12,14 @@ DURATION = 60  # in seconds
 FS = 1000  # sampling freq
 NUMBER = 1000  # Number of signals
 
+
+# VMD constants
+ALPHA = 5000  # Balancing parameter of the data-fidelity constraint
+TAU = 0  # Noise-tolerance (no strict fidelity enforcement)
+N_MODE = 1  # Number of modes to be recovered
+DC = 0  # DC toleration
+TOL = 1e-7  # Tolerance of convergence criterion
+
 # Files paths to store and cut files
 UNCUT_DIR = "/home/leo_dacasi/Dokumente/summerofcode/Enfify Data Synced/raw/synthetic/10s/uncut"
 CUT_DIR = "/home/leo_dacasi/Dokumente/summerofcode/Enfify Data Synced/raw/synthetic/10s/cut"
