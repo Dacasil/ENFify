@@ -18,6 +18,7 @@ dependencies:
   - pandas
   - scikit-learn
   - ffmpeg
+  - librosa
   - pip:
     - python-dotenv
     - mkdocs
@@ -28,3 +29,4 @@ dependencies:
     - fpdf
     - numba
     - ffmpeg-python
+    - libfmp
