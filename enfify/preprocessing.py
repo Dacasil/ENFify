@@ -46,7 +46,7 @@ def downsample_scipy(sig, sample_rate, downsample_rate):
         # Otherwise, use resampling
         # Log a warning about the need for an antialiasing filter
         logger.warning(
-            "The target sampling rate is not an integer multiple of the current sampling rate. Resampling is used, which does not have an integrated antialiasing filter. Applying a lowpass filter."
+            f"The target sampling rate ({downsample_rate}) is not an integer multiple of the current sampling rate ({sample_rate}). Resampling is used, which does not have an integrated antialiasing filter. Applying a lowpass filter."
         )
 
         # Apply a lowpass filter to ensure antialiasing

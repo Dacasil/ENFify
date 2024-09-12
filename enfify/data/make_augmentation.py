@@ -26,6 +26,10 @@ def augmentation(
         logger.warning(f"Directory {interim_dir} already exists, skipping")
         return
 
+    if not os.path.exists(dataset_dir):
+        logger.error(f"Directory {dataset_dir} does not exist")
+        return
+
     files = sorted(glob(str(dataset_dir / "**" / "*.wav"), recursive=True))
     if regex_pattern:
         regex_pattern = re.compile(regex_pattern)

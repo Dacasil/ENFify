@@ -5,8 +5,8 @@ downsampling_frequency_per_nominal_enf: 20
 
 # Windowing
 window_type: 'hann'
-frame_len: 30 # milliseconds
-frame_overlap: 0.5
+frame_len: 2500 # milliseconds (Rodriguez: 60 / 100 / 200)
+frame_overlap: 0.5 # fraction
 
 # Bandpass Filter
 
