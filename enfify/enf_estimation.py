@@ -180,7 +180,7 @@ def segmented_freq_estimation_DFT0(s_in, f_s, num_cycles, N_DFT, nominal_enf):
 
     num_blocks = len(s_in) // step_size - (num_cycles - 1)
 
-    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
+    segments = [s_in[i * step_size : (i + num_cycles) * step_size + 1] for i in range(num_blocks)]
 
     freqs = []
     for i in range(len(segments)):
@@ -352,6 +352,7 @@ def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
     phases = np.array(phases)
 
     return phases
+
 
 def segmented_freq_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
     """_summary_

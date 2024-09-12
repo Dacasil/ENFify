@@ -1,21 +1,20 @@
-# nominal_enf: 50.0
+##CONFIG for Data preprocessing
 
-# Downsampling
-downsampling_frequency_per_nominal_enf: 20
+# Nominal ENF
+frame_len: 100 # milliseconds (Rodriguez: 60 / 100 / 200)
+frame_overlap: 0.5 # fraction
+
 
 # Windowing
 window_type: 'hann'
-frame_len: 2500 # milliseconds (Rodriguez: 60 / 100 / 200)
-frame_overlap: 0.5 # fraction
+frame_len: 30 # milliseconds
+frame_overlap: 0.5
 
-# Bandpass Filter
 
-# Variational Mode Decomposition (VMD)
+# Downsampling
+downsample_enabled: true
+downsampling_frequency_per_nominal_enf: 20
 
-# Robust Filtering Algorithm (RFA)
-
-# PREVIOUS
-nominal_enf: 50.0       # Expected ENF frequency in Hz
 
 # Bandpass Filter Configuration
 bandpass_filter:
@@ -24,17 +23,34 @@ bandpass_filter:
   highcut: 50.5   # High cut frequency in Hz
   order: 1
 
-# Variational Mode Decomposition (VMD) Configuration
+
+# Variational Mode Decomposition (VMD)
 VMD: 
-  is_enabled: false
-  alpha: 5000            # Balancing parameter of the data-fidelity constraint
-  tau: 0                 # Noise-tolerance (no strict fidelity enforcement)
-  n_mode: 1              # Number of modes to be recovered
-  DC: 0
-  tol: !!float 1e-7      # Tolerance of convergence criterion
+  is_enabled: true
+  loop: 5              # Number of VMD iterations
+  alpha: 5000          # Balancing parameter of the data-fidelity constraint
+  tau: 0               # Noise-tolerance (no strict fidelity enforcement)
+  n_mode: 1            # Number of modes to be recovered
+  DC: false            # True if the first mode is to be DC (0-freq)
+  tol: !!float 1e-7    # Tolerance of convergence criterion
+
+
+# Robust Filtering Algorithm (RFA)
+RFA: 
+  is_enabled: true
+  f0: 50                   # estimated frequency (here ENF second harmonic)     
+  I: 3                      # Number of RFA repeats
+  tau: 1000                # RFA winoow size
+  epsilon: !!float 1e-20    # Noise-tolerance (no strict fidelity enforcement)
+
 
 # Phase Estimation Configuration
 phase_estimation:
+  n_dft: 20000             # Number of points in DFT for phase estimation
+  num_cycles: 10           # Number of cycles for phase estimation
+
+
+freq_estimation:
   n_dft: 20000             # Number of points in DFT for phase estimation
   num_cycles: 10           # Number of cycles for phase estimation
 
