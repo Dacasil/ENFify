@@ -1,11 +1,12 @@
 """Module that combines steps of the workflow."""
 
 import numpy as np
+from loguru import logger
 from scipy.signal import get_window
 
-from enfify.preprocessing import bandpass_filter, downsample_scipy
-from enfify.enf_enhancement import VMD, RFA
-from enfify.enf_estimation import segmented_freq_estimation_DFT1
+from enfify.enf_enhancement import RFA, VMD
+from enfify.enf_estimation import freq_estimation_DFT1, segmented_freq_estimation_DFT1
+from enfify.preprocessing import bandpass_filter, downsample_ffmpeg, downsample_scipy
 
 
 def frame_split(sig, window_type, frame_len, frame_shift):
@@ -24,33 +25,39 @@ def frame_split(sig, window_type, frame_len, frame_shift):
 
 def freq_feature_pipeline(sig, sample_freq, config):
     # Downsampling
-    downsample_freq = config["downsampling_frequency_per_nominal_enf"] * config["nominal_enf"]
-    sig, sample_freq = downsample_scipy(sig, sample_freq, downsample_freq)
-
-    # Frame Splitting and Windowing
-    window_type = config["window_type"]
-    frame_len = int(config["frame_len"] / 1000 * sample_freq)
-    frame_shift = int(frame_len * config["frame_overlap"])
-
-    frames = frame_split(sig, window_type, frame_len, frame_shift)
+    nominal_enf = config["nominal_enf"]
+    downsample_freq = config["downsampling_frequency_per_nominal_enf"] * nominal_enf
+    sig, sample_freq = downsample_ffmpeg(sig, sample_freq, downsample_freq)
 
     # Bandpass Filter
     bandpass_config = config["bandpass_filter"]
     lowcut = bandpass_config["lowcut"]
     highcut = bandpass_config["highcut"]
     order = bandpass_config["order"]
-    frames = bandpass_filter(frames, lowcut, highcut, sample_freq, order)
+    sig = bandpass_filter(sig, lowcut, highcut, sample_freq, order)
 
-    # Variational Mode Decomposition
-    # frames = VMD(frames, sample_freq, config)
+    # Frame Splitting and Windowing
+    window_type = config["window_type"]
+    frame_len_samples = int(config["frame_len"] / 1000 * sample_freq)
+    frame_shift = int(frame_len_samples * (1 - config["frame_overlap"]))
 
-    # Robust Filtering Algorithm
-    # frames = RFA(frames, sample_freq, config)
+    num_frames = (len(sig) - frame_len_samples + frame_shift) // frame_shift
+    frames = np.zeros((num_frames, frame_len_samples))
 
-    # STFT
-    _amplitudes = np.abs(np.fft.rfft(frames, axis=-1))
-    _frequencies = np.fft.rfftfreq(frame_len, d=1 / sample_freq)
-    feature_freqs = _frequencies[np.argmax(_amplitudes, axis=-1)]
+    window = get_window(window_type, frame_len_samples)
+    for i in range(num_frames):
+        start = i * frame_shift
+        end = start + frame_len_samples
+        frames[i] = sig[start:end] * window
+
+    logger.info(f"Number of frames: {num_frames}")
+    logger.info(f"Frame length: {frame_len_samples} samples")
+
+    # Estimate the instantaneous frequency
+    freq_estimation_config = config["freq_estimation"]
+    n_dft = freq_estimation_config["n_dft"]
+
+    feature_freqs = np.array([freq_estimation_DFT1(frame, sample_freq, n_dft) for frame in frames])
 
     return feature_freqs
 

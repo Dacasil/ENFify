@@ -1,6 +1,7 @@
 """Module with util funcions for data augmentation like making an authentic
 audio tampered or chunk larger audios."""
 
+import json
 import os
 import re
 import sys
@@ -50,6 +51,8 @@ def process_files(files, interim_dir, clip_length, num_clips, max_cutlen):
 
     calc_clips = num_clips is None
 
+    cut_info = {}
+
     for file in tqdm(files):
         basename = zero_pad_number_in_filename(os.path.splitext(os.path.basename(file))[0], 2)
 
@@ -85,9 +88,17 @@ def process_files(files, interim_dir, clip_length, num_clips, max_cutlen):
 
             # Save tampered data
             tamp_path = interim_dir / f"{basename}-{i:02}-tamp.wav"
-            tampered_clip = random_cut_clip(clip, max_cutlen_samples)
-            tampered_clip = tampered_clip[:cliplen_samples]
+            # cut the clip randomly
+            # cutlen_samples = np.random.randint(max_cutlen_samples) + 1
+            cutlen_samples = round(rate / 50 / 2)
+            start = np.random.randint(0, cliplen_samples - cutlen_samples)
+            tampered_clip = np.delete(clip, slice(start, start + cutlen_samples))[:cliplen_samples]
             wavfile.write(tamp_path, rate, tampered_clip)
+            cut_info[tamp_path.name] = {"start": start, "cutlen": cutlen_samples}
+
+    cut_info_path = interim_dir / "cut_info.json"
+    with open(cut_info_path, "w") as f:
+        json.dump(cut_info, f, indent=4)
 
 
 def segment_in_clips(data, cliplen_samples, num_clips):
@@ -100,14 +111,6 @@ def segment_in_clips(data, cliplen_samples, num_clips):
     clip_starts = np.linspace(0, len(data) - cliplen_samples, num_clips).astype(int)
     clips = [data[start : start + cliplen_samples] for start in clip_starts]
     return clips
-
-
-def random_cut_clip(clip, max_cutlen_samples):
-    """Cut a random segment from a clip."""
-    cutlen = np.random.randint(max_cutlen_samples) + 1
-    start = np.random.randint(0, len(clip) - cutlen)
-    cutted_clip = np.delete(clip, slice(start, start + cutlen))
-    return cutted_clip
 
 
 if __name__ == "__main__":
@@ -130,29 +133,6 @@ if __name__ == "__main__":
         EXTERNAL_DATA_DIR / "ENF-WHU-Dataset" / "H1_ref",
         INTERIM_DATA_DIR / "WHU_ref",
         clip_length=10,
-        num_clips=None,
-        max_cutlen=2,
-    )
-
-    augmentation(
-        EXTERNAL_DATA_DIR / "Carioca" / "BASE CARIOCA 1",
-        INTERIM_DATA_DIR / "Carioca1_min",
-        clip_length=60,
-        num_clips=None,
-        max_cutlen=2,
-        regex_pattern=r"^(HC|MC)\d+\.wav$",
-    )
-    augmentation(
-        EXTERNAL_DATA_DIR / "ENF-WHU-Dataset" / "H1",
-        INTERIM_DATA_DIR / "WHU_min",
-        clip_length=60,
-        num_clips=None,
-        max_cutlen=2,
-    )
-    augmentation(
-        EXTERNAL_DATA_DIR / "ENF-WHU-Dataset" / "H1_ref",
-        INTERIM_DATA_DIR / "WHU_ref_min",
-        clip_length=60,
         num_clips=None,
         max_cutlen=2,
     )

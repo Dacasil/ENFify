@@ -33,7 +33,7 @@ def preprocess(dir_path, config):
 
 
 if __name__ == "__main__":
-    with open(ENFIFY_DIR / "config_nature.yml", "r") as f:
+    with open(ENFIFY_DIR / "config_preprocessing.yml", "r") as f:
         config = yaml.safe_load(f)
 
     preprocess(INTERIM_DATA_DIR / "Carioca1", config)

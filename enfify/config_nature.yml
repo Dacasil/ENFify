@@ -1,14 +1,8 @@
 ##CONFIG for Data preprocessing
 
+
 # Nominal ENF
-frame_len: 100 # milliseconds (Rodriguez: 60 / 100 / 200)
-frame_overlap: 0.5 # fraction
-
-
-# Windowing
-window_type: 'hann'
-frame_len: 30 # milliseconds
-frame_overlap: 0.5
+nominal_enf: 50.0 # Hz
 
 
 # Downsampling
@@ -20,7 +14,7 @@ downsampling_frequency_per_nominal_enf: 20
 bandpass_filter:
   is_enabled: true
   lowcut: 49.5    # Low cut frequency in Hz
-  highcut: 50.5   # High cut frequency in Hz
+  highcut: 50.5  # High cut frequency in Hz
   order: 1
 
 
@@ -44,16 +38,14 @@ RFA:
   epsilon: !!float 1e-20    # Noise-tolerance (no strict fidelity enforcement)
 
 
-# Phase Estimation Configuration
-phase_estimation:
-  n_dft: 20000             # Number of points in DFT for phase estimation
-  num_cycles: 10           # Number of cycles for phase estimation
+# Windowing
+window_type: 'hann'
+frame_len: 300 # milliseconds (Rodriguez: 60 / 100 / 200)
+frame_overlap: .9 # fraction
 
 
+# feature extraction
 freq_estimation:
-  n_dft: 20000             # Number of points in DFT for phase estimation
-  num_cycles: 10           # Number of cycles for phase estimation
+  n_dft: 20000             # Number of points in DFT
+  # num_cycles: 10           # Number of cycles for framing # redundant with frame_len
 
-# Plot Results
-plot_results:
-  is_enabled: true         # TODO: Switch not used yet.
