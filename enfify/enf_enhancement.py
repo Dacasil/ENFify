@@ -4,12 +4,14 @@
 
 import numpy as np
 import math
+
 from enfify.enf_estimation import segmented_freq_estimation_DFT1
 from tqdm import tqdm
 from numba import jit, prange
 from scipy.signal import get_window, windows
 from scipy.fft import fft
 import matplotlib.pyplot as plt
+from enfify.enf_estimation import STFT
 
 
 # ...........................RFA................................#
@@ -461,3 +463,173 @@ def func_STFT_multi_tone_search_weighted(
     IF[IF > norm_fc + norm_bound] = norm_fc + norm_bound
 
     return IF, weights
+
+
+# DFT1
+
+'''
+# Estimate frequency with DFT¹ instantaneous estimation (Rodriguez Paper)
+def freq_estimation_DFT1(s_tone, Fs, N_DFT):
+    """_summary_
+
+    Args:
+        s_tone (_type_): _description_
+        Fs (_type_): _description_
+        N_DFT (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    # ......Estimate the frequency......#
+    window_type = "hann"
+    M = len(s_tone)
+
+    # Get the window type
+    window = get_window(window_type, M - 1)
+
+    # Calculate the approx. first derivative of single tone
+    s_tone_diff = Fs * np.diff(s_tone)
+    s_tone = s_tone[1:]
+
+    # Windowing
+    s_tone_windowed = s_tone * window
+    s_tone_diff_windowed = s_tone_diff * window
+
+    # Zero-Padding of the signal
+    s_tone_padded = np.pad(s_tone_windowed, (0, N_DFT - M), "constant")
+    s_tone_padded_diff = np.pad(s_tone_diff_windowed, (0, N_DFT - M), "constant")
+
+    # Calculate the DFT
+    X = fft(s_tone_padded, n=N_DFT)
+    X_diff = fft(s_tone_padded_diff, n=N_DFT)
+
+    # Compute the amplitude spectrum and max. amplitude
+    abs_X = np.abs(X)
+    k_max = np.argmax(abs_X)
+    abs_X_diff = np.abs(X_diff)
+
+    # Estimated frequency of the single tone
+    F_kmax = (np.pi * k_max) / (N_DFT * np.sin(np.pi * k_max / N_DFT))
+    f0_estimated = (F_kmax * abs_X_diff[k_max]) / (2 * np.pi * abs_X[k_max])
+
+    # Validate the frequency result
+    k_DFT = (N_DFT * f0_estimated) / Fs
+    try:
+        k_DFT >= (k_max - 0.5) and k_DFT < (k_max + 0.5)
+    except ValueError:
+        print("estimated frequency is not valid")
+
+    return f0_estimated
+
+
+def segmented_freq_estimation_DFT1(s_in, f_s, N_DFT, step_size, window_len):
+    """_summary_
+
+    Args:
+        s_in (_type_): _description_
+        f_s (_type_): _description_
+        num_cycles (_type_): _description_
+        N_DFT (_type_): _description_
+        nominal_enf (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+
+    segments = []
+
+    for i in range(0, len(s_in), step_size):
+        segments.append(s_in[i : i + window_len])
+
+    freqs = []
+    for i in range(len(segments)):
+        freq = freq_estimation_DFT1(segments[i], f_s, N_DFT)
+        freqs.append(freq)
+
+    return np.array(freqs)'''
+
+
+# RFA
+# Use DFT1 as STFT method for the instantaneous frequency estimation
+def RFA_DFT1(sig, fs, tau, var_I, estimated_enf, window_len, step_size, N_DFT):
+    """Optimized Recursive Frequency Adaptation algorithm with partial JIT optimization."""
+    Nx = len(sig)
+    alpha = 1 / (4 * fs * np.max(sig))
+    f_start = estimated_enf * np.ones(Nx)
+    tau_values = np.arange(1, tau + 1)
+    tau_dash_values = tau_values + int(np.round(fs / (4 * estimated_enf)))
+
+    for k in range(var_I):
+        denoised_sig = np.zeros(Nx)
+
+        denoised_sig = rfa_kernel_phases(
+            sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values
+        )
+
+        # Peak frequency estimation
+        peak_freqs = segmented_freq_estimation_DFT1(denoised_sig, fs, N_DFT, step_size, window_len)
+
+        plt.figure(figsize=(10, 4))
+        plt.plot(peak_freqs)
+        plt.title("Downsampled noisy tone")
+        plt.xlabel("Sample Index")
+        plt.ylabel("Amplitude")
+        plt.grid()
+        plt.show()
+
+        base_repeats = Nx // len(peak_freqs)
+        remainder = Nx % len(peak_freqs)
+        repeat_counts = np.full(len(peak_freqs), base_repeats)
+        repeat_counts[:remainder] += 1
+        new_freqs = np.repeat(peak_freqs, repeat_counts)
+
+        # f_diff = new_freqs - f_start
+        f_start = new_freqs
+
+        # val = np.sum(f_diff**2) / np.sum(f_start**2)
+
+        sig = denoised_sig  # Update the signal for the next iteration
+
+    return sig
+
+
+## Use STFT
+def RFA_STFT(sig, fs, tau, var_I, estimated_enf, window_len, step_size):
+    """Optimized Recursive Frequency Adaptation algorithm with partial JIT optimization."""
+    Nx = len(sig)
+    alpha = 1 / (4 * fs * np.max(sig))
+    f_start = estimated_enf * np.ones(Nx)
+    tau_values = np.arange(1, tau + 1)
+    tau_dash_values = tau_values + int(np.round(fs / (4 * estimated_enf)))
+
+    for k in tqdm(range(var_I)):
+        denoised_sig = np.zeros(Nx)
+
+        denoised_sig = rfa_kernel_phases(
+            sig, denoised_sig, Nx, f_start, fs, alpha, tau, tau_values, tau_dash_values
+        )
+
+        # Peak frequency estimation via STFT
+        peak_freqs = STFT(denoised_sig, fs, step_size, window_len)
+
+        plt.figure(figsize=(10, 4))
+        plt.plot(peak_freqs)
+        plt.title("Downsampled noisy tone")
+        plt.xlabel("Sample Index")
+        plt.ylabel("Amplitude")
+        plt.grid()
+        plt.show()
+
+        base_repeats = Nx // len(peak_freqs)
+        remainder = Nx % len(peak_freqs)
+        repeat_counts = np.full(len(peak_freqs), base_repeats)
+        repeat_counts[:remainder] += 1
+        new_freqs = np.repeat(peak_freqs, repeat_counts)
+
+        # f_diff = new_freqs - f_start
+        f_start = new_freqs
+
+        # val = np.sum(f_diff**2) / np.sum(f_start**2)
+
+        sig = denoised_sig  # Update the signal for the next iteration

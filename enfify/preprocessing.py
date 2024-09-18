@@ -3,7 +3,7 @@
 import os
 import re
 import tempfile
-
+import math
 import ffmpeg
 import matplotlib.pyplot as plt
 import numpy as np
@@ -237,29 +237,7 @@ def ffmpeg_filenames_cut(input_dir, output_dir):
 # .................Cut signal..................#
 
 
-def cut_tones(sig, F_DS):
-    """Random cuts numpy arrays
-
-    Args:
-        sig (nparray): numpy array signal
-        F_DS (int or float): Sampling frequency of the signal
-
-    Returns:
-        _type_: Cut numpy array
-    """
-
-    m = len(sig)
-    CUT_SAMPLES_LIMIT = 1 * F_DS
-
-    cut_len = np.random.randint(0, CUT_SAMPLES_LIMIT)
-    i_cut_start = np.random.randint(cut_len, m - cut_len)
-    i_cut_end = i_cut_start + cut_len
-    cut_sig = np.concatenate((sig[:i_cut_start], sig[i_cut_end:]))
-
-    return cut_sig, i_cut_start, cut_len
-
-
-def cut_signal(sig, F_DS, cut_start, cut_len):
+def cut_signal(sig, cut_start, cut_len):
     """Cuts numpy arrays
 
     Args:
@@ -360,3 +338,78 @@ def mult_cut_audio(
 
     # Execute the command
     os.system(command)
+
+
+# Spatial and temporal features
+def extract_temporal_features(psi_1_phases, fl, fn):
+    """
+    Function to extract temporal features T F fl × fn from phase sequence features ψ1.
+
+    Parameters:
+    - psi_1_list: A list of phase sequence features (arrays) for multiple audio files.
+    - fl: The number of phase points contained in each frame (frame length).
+
+    Returns:
+    - temporal_features: A list of temporal feature matrices T F fl × fn for each audio file.
+    """
+
+    current_len = len(psi_1_phases)
+
+    overlap = fl - math.floor(current_len / fn)
+
+    # Split the phase sequence into frames using the calculated overlap
+    frames = []
+    for i in range(0, current_len - fl + 1, overlap):
+        frame = psi_1_phases[i : i + fl]
+        frames.append(frame)
+
+    # Cases where the last frame is smaller than `fl`
+    if len(psi_1_phases) % fl != 0:
+        frame = psi_1_phases[-fl:]
+        frames.append(frame)
+
+    # Reshape the frames into a temporal feature matrix T F fl × fn
+    feature_matrix = np.zeros((fl, fn))
+
+    # Matrix
+    for i in range(min(fn, len(frames))):
+        feature_matrix[:, i] = frames[i]
+
+    return feature_matrix
+
+
+def extract_spatial_features(psi_1_phases, sn):
+    """
+    Function to extract spatial features S Fsn×sn from phase sequence features ψ1.
+
+    Parameters:
+    - psi_1_list: A list of phase sequence features (arrays) for multiple audio files.
+
+    Returns:
+    - spatial_features: A list of spatial feature matrices S Fsn×sn for each audio file.
+    """
+
+    ML = sn**2
+
+    current_len = len(psi_1_phases)
+
+    overlap = sn - math.ceil((ML - sn) / (current_len - sn))
+
+    # Split the frame
+    num_frames = (current_len - sn) // overlap + 1
+    frames = []
+
+    for i in range(0, num_frames * overlap, overlap):
+        if i + sn <= current_len:
+            frame = psi_1_phases[i : i + sn]
+            frames.append(frame)
+        else:
+            break
+
+    # Reshape into a spatial feature matrix (S Fsn×sn)
+    feature_matrix = np.zeros((sn, sn))
+
+    for i in range(min(sn, len(frames))):
+        feature_matrix[i, : len(frames[i])] = frames[i]
+
+    return feature_matrix

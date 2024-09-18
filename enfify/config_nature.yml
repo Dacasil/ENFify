@@ -1,13 +1,10 @@
-##CONFIG for Data preprocessing
+##CONFIG for Data preprocessing CNN 
 
 # Nominal ENF
 nominal_enf: 50.0       # Expected ENF frequency in Hz
 
-
 # Windowing
 window_type: 'hann'
-frame_len: 30 # milliseconds
-frame_overlap: 0.5
 
 
 # Downsampling
@@ -46,12 +43,16 @@ RFA:
 # Phase Estimation Configuration
 phase_estimation:
   n_dft: 20000             # Number of points in DFT for phase estimation
-  num_cycles: 10           # Number of cycles for phase estimation
+  step_size: 20            # Step Size
+  window_len: 200          # Window Length
 
 
+# Freq Estimation Configuration
 freq_estimation:
-  n_dft: 20000             # Number of points in DFT for phase estimation
-  num_cycles: 10           # Number of cycles for phase estimation
+  n_dft: 20_000             # Number of points in DFT for phase estimation
+  step_size: 20             # Step Size
+  window_len: 200           # Window Length
+
 
 # Plot Results
 plot_results:
