@@ -1,22 +1,22 @@
 ##CONFIG for Data preprocessing CNN 
 
 # Nominal ENF
-nominal_enf: 50.0       # Expected ENF frequency in Hz
+nominal_enf: 100.0       # Expected ENF frequency in Hz
 
 # Windowing
 window_type: 'hann'
 
 
 # Downsampling
-downsample_enabled: false
+downsample_enabled: true
 downsampling_frequency_per_nominal_enf: 20
 
 
 # Bandpass Filter Configuration
 bandpass_filter:
   is_enabled: true
-  lowcut: 49.5    # Low cut frequency in Hz
-  highcut: 50.5   # High cut frequency in Hz
+  lowcut: 99.5    # Low cut frequency in Hz
+  highcut: 100.5   # High cut frequency in Hz
   order: 1
 
 
@@ -61,5 +61,4 @@ feature_matrices:
 
 
 # Plot Results
-plot_results:
-  is_enabled: true         # TODO: Switch not used yet.
+plot: true        # TODO: Switch not used yet.

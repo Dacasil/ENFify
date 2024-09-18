@@ -6,6 +6,7 @@ from sklearn.metrics import roc_curve
 
 # ..........................Feature Estimation.........................#
 
+
 def feature(phases):
     """_summary_
 
@@ -22,6 +23,7 @@ def feature(phases):
 
 
 # ..........................Lambda.........................#
+
 
 def Lambda(uncut_F, cut_F):
     """_summary_
@@ -125,6 +127,5 @@ def find_cut_in_phases(phases, x):
 
             phases_new.append(phases[int(start) - 200 : int(end) + 200])
             x_new.append(x[int(start) - 200 : int(end) + 200])
-
 
         return phases_new, x_new, discontinuities

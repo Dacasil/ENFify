@@ -1,5 +1,7 @@
 """Module that combines steps of the workflow."""
 
+import matplotlib.pyplot as plt
+
 from enfify.preprocessing import (
     bandpass_filter,
     downsample_ffmpeg,
@@ -123,6 +125,10 @@ def phase_CNNBiLSTM_feature_pipeline(sig, sample_freq, config):
     # Cut the boundary to weaken boundary value problems
     feature_phases = feature_phases[40:-40]
 
+    if config["plot"]:
+        plt.plot(feature_phases)
+        plt.show()
+
     feature_config = config["feature_matrices"]
     sn = feature_config["sn"]
     fl = feature_config["fl"]
@@ -185,6 +191,10 @@ def freq_CNNBiLSTM_feature_pipeline(sig, sample_freq, config):
     feature_freqs = STFT(sig, downsample_freq, step_size, window_len)
 
     feature_freqs = feature_freqs[40:-40]
+
+    if config["plot"]:
+        plt.plot(feature_freqs)
+        plt.show()
 
     feature_config = config["feature_matrices"]
     sn = feature_config["sn"]
