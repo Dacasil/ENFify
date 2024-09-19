@@ -74,10 +74,10 @@ augmentation: # requirements # MayDo dataset as requirement?
 	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) enfify/data/make_augmentation.py
 
 
-# ## Make Preprocessing
-# .PHONY: preprocessing
-# preprocessing: # requirements # MayDo augmentation as requirement?
-# 	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) # enfify/data/make_augmentation.py
+## Make Preprocessing
+.PHONY: preprocessing
+preprocessing: # requirements # MayDo augmentation as requirement?
+	conda run -n $(PROJECT_NAME) $(PYTHON_INTERPRETER) enfify/data/make_preprocessing.py
 
 
 #################################################################################
