@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 # from tqdm import tqdm
 
 
-from enfify.enf_estimation import (
+from enfify.feature_calculation import (
     segmented_freq_estimation_DFT1,
     segmented_phase_estimation_hilbert,
 )

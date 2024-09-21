@@ -5,8 +5,20 @@ description = "Detection of audio manipulation by using electrical network frequ
 authors = ["Licates <136702730+Licates@users.noreply.github.com>, Dacasil <https://github.com/Dacasil>"]
 readme = "README.md"
 
+[tool.poetry.scripts]
+enfify = "enfify.main:app"
+
 [tool.poetry.dependencies]
 python = "^3.10"
+typer = "^0.12.5"
+loguru = "^0.7.2"
+numpy = "^2.1.1"
+tqdm = "^4.66.5"
+python-dotenv = "^1.0.1"
+scipy = "^1.14.1"
+matplotlib = "^3.9.2"
+ffmpeg-python = "^0.2.0"
+pyyaml = "^6.0.2"
 
 
 [build-system]

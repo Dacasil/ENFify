@@ -1,4 +1,7 @@
 # OUR GITIGNORE LINES
+poetry.lock
+enfify-prev
+
 lab*
 *.pdf
 *.mp3
