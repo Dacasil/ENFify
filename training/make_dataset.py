@@ -15,8 +15,8 @@ from loguru import logger
 from scipy.io import wavfile
 from tqdm import tqdm
 
-from enfify.config import DATA_DIR, EXTERNAL_DATA_DIR
-from enfify.preprocessing import downsample_scipy
+from enfify import DATA_DIR, EXTERNAL_DATA_DIR
+from enfify import downsample_ffmpeg
 from enfify.synthetic_signals import random_signal
 
 np.random.seed(42)

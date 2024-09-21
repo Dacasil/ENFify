@@ -105,7 +105,7 @@ def segment_in_clips(data, cliplen_samples, num_clips):
     """Segment a data array into a number of clips of a given length."""
 
     if len(data) < cliplen_samples:
-        logger.error(f"Data is shorter than clip")
+        logger.error("Data is shorter than clip")
         return
 
     clip_starts = np.linspace(0, len(data) - cliplen_samples, num_clips).astype(int)
