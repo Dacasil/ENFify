@@ -1,27 +1,28 @@
 """Module for ENF frequency and phase estimation"""
 
+import librosa
 import math
 
 import librosa
 import numpy as np
-import scipy.signal as signal
 from scipy.fft import fft
 from scipy.signal import get_window, hilbert
+from numba import jit
 
 
 # Estimate frequency and phase with DFT⁰ ((Rodriguez Paper)
-def phase_estimation_DFT0(s_tone, Fs, N_DFT):
-    """_summary_
+def phase_estimation_DFT0(s_tone, sampling_rate, N_DFT):
+    """
+    Estimate frequency and phase of a signal using the Discrete Fourier Transform (DFT).
 
     Args:
-        s_tone (_type_): _description_
-        Fs (_type_): _description_
-        N_DFT (_type_): _description_
+        s_tone (np.ndarray): The input signal (time-domain)
+        sampling_rate (float): Sampling rate
+        N_DFT (int): The number of points in the DFT (zero-padding length & frequency resolution)
 
     Returns:
-        _type_: _description_
+        tuple: Estimated frequency (float) and phase (float) of the input signal.
     """
-
     window_type = "hann"
     M = len(s_tone)
     window = get_window(window_type, M)
@@ -36,7 +37,7 @@ def phase_estimation_DFT0(s_tone, Fs, N_DFT):
     # Find the peak in the magnitude spectrum
     magnitude_spectrum = np.abs(X)  # Magnitude of the DFT (Amplitude)
     k_max = np.argmax(magnitude_spectrum)  # Maximum Amplitude
-    f0_estimated = k_max * (Fs) / (N_DFT)  # estimated frequency of the single tone
+    f0_estimated = k_max * (sampling_rate) / (N_DFT)  # estimated frequency of the single tone
 
     # Estimate the phase
     phi0_estimated = np.angle(X[k_max])  # Argument (angle) of the DFT function
@@ -45,18 +46,18 @@ def phase_estimation_DFT0(s_tone, Fs, N_DFT):
 
 
 # Estimate frequency with DFT¹ instantaneous estimation (Rodriguez Paper)
-def freq_estimation_DFT1(s_tone, Fs, N_DFT):
-    """_summary_
+def freq_estimation_DFT1(s_tone, sampling_rate, N_DFT):
+    """
+    Estimates the instantaneous frequency of a tone using the Discrete Fourier Transform (DFT).
 
     Args:
-        s_tone (_type_): _description_
-        Fs (_type_): _description_
-        N_DFT (_type_): _description_
+        s_tone (numpy.ndarray): The input signal (tone) for frequency estimation
+        sampling_rate (float): The sampling rate of the input signal
+        N_DFT (int): The number of points in the DFT (zero-padding length & frequency resolution)
 
     Returns:
-        _type_: _description_
+        float: The estimated instantaneous frequency of the tone
     """
-
     # ......Estimate the frequency......#
     window_type = "hann"
     M = len(s_tone)
@@ -65,7 +66,7 @@ def freq_estimation_DFT1(s_tone, Fs, N_DFT):
     window = get_window(window_type, M - 1)
 
     # Calculate the approx. first derivative of single tone
-    s_tone_diff = Fs * np.diff(s_tone)
+    s_tone_diff = sampling_rate * np.diff(s_tone)
     s_tone = s_tone[1:]
 
     # Windowing
@@ -90,7 +91,7 @@ def freq_estimation_DFT1(s_tone, Fs, N_DFT):
     f0_estimated = (F_kmax * abs_X_diff[k_max]) / (2 * np.pi * abs_X[k_max])
 
     # Validate the frequency result
-    k_DFT = (N_DFT * f0_estimated) / Fs
+    k_DFT = (N_DFT * f0_estimated) / sampling_rate
     try:
         k_DFT >= (k_max - 0.5) and k_DFT < (k_max + 0.5)
     except ValueError:
@@ -100,17 +101,27 @@ def freq_estimation_DFT1(s_tone, Fs, N_DFT):
 
 
 # Estimate phase with DFT¹ instantaneous estimation (Rodriguez Paper)
-def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated=None):
-    """_summary_
+def phase_estimation_DFT1(s_tone, sampling_rate, N_DFT, f0_estimated=None):
+    """
+    Estimates the instantaneous phase of a tone using the Discrete Fourier Transform (DFT).
 
     Args:
-        s_tone (_type_): _description_
-        Fs (_type_): _description_
-        N_DFT (_type_): _description_
-        f0_estimated (_type_): _description_
+        s_tone (numpy.ndarray): The input signal (tone) for phase estimation
+        sampling_rate (float): The sampling rate of the input signal
+        N_DFT (int): The number of points for the DFT
+        f0_estimated (float): The estimated frequency of the tone
 
     Returns:
-        _type_: _description_
+        float: The estimated instantaneous phase of the tone
+
+    Process:
+        - Applies a Hann window to the input signal's derivative.
+        - Zero-pads the derivative signal to the specified length (N_DFT).
+        - Computes the DFT of the windowed derivative signal.
+        - Calculates the corresponding DFT index for the estimated frequency.
+        - Estimates the phase based on the DFT of the derivative and the estimated frequency.
+        - Compares the estimated phase with a phase calculated using a previous method (DFT⁰).
+        - Returns the phase that is closest to the DFT⁰ estimate.
     """
 
     if f0_estimated is None:
@@ -124,7 +135,7 @@ def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated=None):
     window = get_window(window_type, M - 1)
 
     # Calculate the approx. first derivative of single tone
-    s_tone_diff = Fs * np.diff(s_tone)
+    s_tone_diff = sampling_rate * np.diff(s_tone)
 
     # Windowing
     s_tone_diff_windowed = s_tone_diff * window
@@ -135,20 +146,24 @@ def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated=None):
     # Calculate the DFT
     X_diff = fft(s_tone_padded_diff, n=N_DFT)
 
-    k_DFT = (N_DFT * f0_estimated) / Fs
+    k_DFT = (N_DFT * f0_estimated) / sampling_rate
 
     # Validate the frequency result
     _, phi_DFT0 = phase_estimation_DFT0(
-        s_tone, Fs, N_DFT
+        s_tone, sampling_rate, N_DFT
     )  # Calculate phase with DFT⁰ method to compare the values
 
-    omega_0 = 2 * np.pi * f0_estimated / Fs
+    omega_0 = 2 * np.pi * f0_estimated / sampling_rate
     k_low = math.floor(k_DFT)
     k_high = math.ceil(k_DFT)
 
-    theta_low = np.angle(X_diff[k_low])
-    theta_high = np.angle(X_diff[k_high])
-    theta = (k_DFT - k_low) * (theta_high - theta_low) / (k_high - k_low) + theta_low
+    # Handle the case where k_low == k_high
+    if k_low == k_high:
+        theta = np.angle(X_diff[k_low])
+    else:
+        theta_low = np.angle(X_diff[k_low])
+        theta_high = np.angle(X_diff[k_high])
+        theta = (k_DFT - k_low) * (theta_high - theta_low) / (k_high - k_low) + theta_low
 
     numerator = np.tan(theta) * (1 - np.cos(omega_0)) + np.sin(omega_0)
     denominator = 1 - np.cos(omega_0) - np.tan(theta) * np.sin(omega_0)
@@ -166,49 +181,20 @@ def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated=None):
     return phi
 
 
-# ..... Estimate the instantaneous frequency of a tone in
-def segmented_freq_estimation_DFT0(s_in, f_s, num_cycles, N_DFT, nominal_enf):
-    """_summary_
-
-    Args:
-        s_in (_type_): _description_
-        f_s (_type_): _description_
-        num_cycles (_type_): _description_
-        N_DFT (_type_): _description_
-        nominal_enf (_type_): _description_
-
-    Returns:
-        _type_: _description_
+# DFT1 instantaneous frequency estimation with old segment
+def segmented_freq_estimation_DFT1_old(s_in, f_s, num_cycles, N_DFT, nominal_enf):
     """
-
-    step_size = int(f_s // nominal_enf)  # samples per nominal enf cycle
-
-    num_blocks = len(s_in) // step_size - (num_cycles - 1)
-
-    segments = [s_in[i * step_size : (i + num_cycles) * step_size + 1] for i in range(num_blocks)]
-
-    freqs = []
-    for i in range(len(segments)):
-        freq, _ = phase_estimation_DFT0(segments[i], f_s, N_DFT)
-        freqs.append(freq)
-
-    freqs = np.array(freqs)
-
-    return freqs
-
-
-def segmented_freq_estimation_DFT1(s_in, f_s, num_cycles, N_DFT, nominal_enf):
-    """_summary_
+    Estimates the instantaneous frequency of an input signal using DFT1 for segments.
 
     Args:
-        s_in (_type_): _description_
-        f_s (_type_): _description_
-        num_cycles (_type_): _description_
-        N_DFT (_type_): _description_
-        nominal_enf (_type_): _description_
+        s_in (numpy.ndarray): The input signal for frequency estimation
+        sampling_rate (float): The sampling rate of the input signal
+        N_DFT (int): The number of points for the DFT
+        step_size (int): The number of samples to shift between segments
+        window_len (int): The length of each segment to analyze
 
     Returns:
-        _type_: _description_
+        numpy.ndarray: An array of estimated frequencies corresponding to each segment of the input signal.
     """
     step_size = int(f_s // nominal_enf)  # samples per nominal enf cycle
 
@@ -226,93 +212,81 @@ def segmented_freq_estimation_DFT1(s_in, f_s, num_cycles, N_DFT, nominal_enf):
     return freqs
 
 
-def segmented_phase_estimation_DFT0(s_in, f_s, num_cycles, N_DFT, nominal_enf):
-    """_summary_
+# DFT1 instantaneous frequency estimation
+def segmented_freq_estimation_DFT1(s_in, sampling_rate, N_DFT, step_size, window_len):
+    """
+    Estimates the instantaneous frequency of an input signal using DFT1 for segments.
 
     Args:
-        s_in (_type_): _description_
-        f_s (_type_): _description_
-        num_cycles (_type_): _description_
-        N_DFT (_type_): _description_
-        nominal_enf (_type_): _description_
+        s_in (numpy.ndarray): The input signal for frequency estimation
+        sampling_rate (float): The sampling rate of the input signal
+        N_DFT (int): The number of points for the DFT
+        step_size (int): The number of samples to shift between segments
+        window_len (int): The length of each segment to analyze
 
     Returns:
-        _type_: _description_
+        numpy.ndarray: An array of estimated frequencies corresponding to each segment of the input signal.
     """
-    step_size = int(f_s // nominal_enf)  # samples per nominal enf cycle
+    segments = []
 
-    num_blocks = len(s_in) // step_size - (num_cycles - 1)
+    for i in range(0, len(s_in), step_size):
+        segments.append(s_in[i : i + window_len])
 
-    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
+    freqs = []
+    for i in range(len(segments)):
+        freq = freq_estimation_DFT1(segments[i], sampling_rate, N_DFT)
+        freqs.append(freq)
+
+    freqs = np.array(freqs)
+
+    return freqs
+
+
+# DFT1 instantaneous phase estimation
+def segmented_phase_estimation_DFT1(
+    s_in, sampling_rate, nominal_enf, N_DFT, step_size, window_len
+):
+    """
+    Estimates the instantaneous phase of an input signal using DFT1 for segments.
+
+    Args:
+        s_in (numpy.ndarray): The input signal for phase estimation
+        sampling_rate (float): The sampling rate of the input signal
+        nominal_enf (float): The nominal electrical network frequency
+        N_DFT (int): The number of points for the DFT
+        step_size (int): The number of samples to shift between segments
+        window_len (int): The length of each segment to analyze
+
+    Returns:
+        numpy.ndarray: An array of estimated phases corresponding to each segment of the input signal.
+    """
+    segments = []
+
+    for i in range(0, len(s_in), step_size):
+        segments.append(s_in[i : i + window_len])
 
     phases = []
     for segment in segments:
-        _, phase = phase_estimation_DFT0(segment, f_s, N_DFT)
+        phase = phase_estimation_DFT1(segment, sampling_rate, N_DFT, nominal_enf)
         phases.append(phase)
 
-    phases = np.array(phases)
+    phases = [2 * (x + np.pi / 2) for x in phases]
     phases = np.unwrap(phases)
+    phases = [(x / 2.0 - np.pi / 2) for x in phases]
+
     return phases
-
-
-def segmented_phase_estimation_DFT1(s_in, f_s, num_cycles, N_DFT, nominal_enf):
-    """_summary_
-
-    Args:
-        s_in (_type_): _description_
-        f_s (_type_): _description_
-        num_cycles (_type_): _description_
-        N_DFT (_type_): _description_
-        nominal_enf (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    step_size = int(f_s // nominal_enf)  # samples per nominal enf cycle
-
-    num_blocks = len(s_in) // step_size - (num_cycles - 1)
-
-    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
-
-    phases = []
-    for segment in segments:
-        _, phase = phase_estimation_DFT1(segment, f_s, N_DFT)
-        phases.append(phase)
-
-    phases = np.array(phases)
-    # phases = np.unwrap(phases)
-    return phases
-
-
-# Hilbert instantaneous freq estimation
-def hilbert_instantaneous_freq(signal, fs):
-    """_summary_
-
-    Args:
-        signal (_type_): _description_
-        fs (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-    analytic_sig = hilbert(signal)
-    inst_phase = np.unwrap(np.angle(analytic_sig))
-    inst_freq = np.diff(inst_phase) / (2.0 * np.pi) * fs
-    inst_freq = np.append(
-        inst_freq, inst_freq[-1]
-    )  # Diff reduces the number of results by 1 -> dulicate the last frequency
-    return inst_freq
 
 
 # Hilbert instantaneous phase estimation
 def hilbert_instantaneous_phase(signal):
-    """_summary_
+    """
+    Estimates the instantaneous phase of a signal using the Hilbert transform.
 
     Args:
-        signal (_type_): _description_
+        signal (numpy.ndarray): The input signal for phase estimation
 
     Returns:
-        _type_: _description_
+        numpy.ndarray: The instantaneous phase of the input signal, unwrapped to remove discontinuities
     """
     analytic_sig = hilbert(signal)
     inst_phase = np.unwrap(np.angle(analytic_sig))
@@ -320,22 +294,61 @@ def hilbert_instantaneous_phase(signal):
 
 
 # Hilbert segmented phase estimation
-def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
-    """_summary_
+def segmented_phase_estimation_hilbert_new(s_in, step_size, window_len):
+    """
+    Estimates the mean instantaneous phase of segments of a signal using the Hilbert transform.
 
     Args:
-        s_in (_type_): _description_
-        f_s (_type_): _description_
-        num_cycles (_type_): _description_
-        nominal_enf (_type_): _description_
+        s_in (numpy.ndarray): The input signal to be segmented
+        step_size (int): The number of samples to step between segments
+        window_len (int): The length of each segment for phase estimation
 
     Returns:
-        _type_: _description_
+        numpy.ndarray: An array of mean instantaneous phases for each segment, unwrapped to remove discontinuities.
+    """
+    window_type = "hann"
+
+    segments = []
+
+    for i in range(0, len(s_in), step_size):
+        segments.append(s_in[i : i + window_len])
+
+    phases = []
+
+    for i in range(len(segments)):
+
+        M = len(segments[i])
+        window = get_window(window_type, M)
+        hann_segment = segments[i] * window
+
+        phase = hilbert_instantaneous_phase(hann_segment)
+        phase = np.mean(phase)
+        phases.append(phase)
+
+    phases = np.unwrap(phases)
+    phases = np.array(phases)
+
+    return phases
+
+
+# Hilbert segmented phase estimation
+def segmented_phase_estimation_hilbert(s_in, sampling_rate, num_cycles, nominal_enf):
+    """
+    Estimates the mean instantaneous phase of segmented blocks of a signal using the Hilbert transform.
+
+    Args:
+        s_in (numpy.ndarray): Audio Signal
+        sampling_rate (int): The sampling rate of the input signal
+        num_cycles (int): The number of cycles to include in each block for phase estimation
+        nominal_enf (float): The nominal ENF frequency for determining segment size
+
+    Returns:
+        numpy.ndarray: An array of mean instantaneous phases for each block, unwrapped to remove discontinuities.
     """
 
     window_type = "hann"
 
-    step_size = int(f_s // nominal_enf)
+    step_size = int(sampling_rate // nominal_enf)
 
     num_blocks = len(s_in) // step_size - (num_cycles - 1)
 
@@ -359,99 +372,8 @@ def segmented_phase_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
     return phases
 
 
-def segmented_freq_estimation_hilbert(s_in, f_s, num_cycles, nominal_enf):
-    """_summary_
-
-    Args:
-        s_in (_type_): _description_
-        f_s (_type_): _description_
-        num_cycles (_type_): _description_
-        nominal_enf (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-
-    window_type = "hamming"
-
-    step_size = int(f_s // nominal_enf)
-
-    num_blocks = len(s_in) // step_size - (num_cycles - 1)
-
-    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
-
-    freqs = []
-
-    for i in range(len(segments)):
-
-        M = len(segments[i])
-        window = get_window(window_type, M)
-        hann_segment = segments[i] * window
-
-        freq = hilbert_instantaneous_freq(hann_segment, f_s)
-        freq = np.mean(freq)
-        freqs.append(freq)
-
-    freqs = np.unwrap(freqs)
-    freqs = np.array(freqs)
-
-    return freqs
-
-
-# Instantaneous phase estimation via scipy
-def scipy_IF_estimation(sig, fs):
-    """_summary_
-
-    Args:
-        sig (_type_): _description_
-        fs (_type_): _description_
-
-    Returns:
-        _type_: _description_
-    """
-
-    nperseg = 10 * fs
-    freqs, times, stft = signal.stft(sig, fs=fs, nperseg=nperseg)  # Apply STFT
-    peak_freqs = [
-        freqs[idx] for t in range(len(times)) if (idx := np.argmax(stft[:, t]))
-    ]  # Extract peak for each point in time
-
-    return peak_freqs
-
-
 # STFT
-def compute_if(X, Fs, N, H):
-    """Instantenous frequency (IF) estamation
-
-    | Notebook: C8/C8S2_InstantFreqEstimation.ipynb, see also
-    | Notebook: C6/C6S1_NoveltyPhase.ipynb
-
-    Args:
-        X (np.ndarray): STFT
-        Fs (scalar): Sampling rate
-        N (int): Window size in samples
-        H (int): Hop size in samples
-
-    Returns:
-        F_coef_IF (np.ndarray): Matrix of IF values
-    """
-    # TODO: refactor
-    phi_1 = np.angle(X[:, 0:-1]) / (2 * np.pi)
-    phi_2 = np.angle(X[:, 1:]) / (2 * np.pi)
-
-    K = X.shape[0]
-    index_k = np.arange(0, K).reshape(-1, 1)
-    # Bin offset (FMP, Eq. (8.45))
-    kappa = (N / H) * principal_argument(phi_2 - phi_1 - index_k * H / N)
-    # Instantaneous frequencies (FMP, Eq. (8.44))
-    F_coef_IF = (index_k + kappa) * Fs / N
-
-    # Extend F_coef_IF by copying first column to match dimensions of X
-    F_coef_IF = np.hstack((np.copy(F_coef_IF[:, 0]).reshape(-1, 1), F_coef_IF))
-
-    return F_coef_IF
-
-
+@jit(nopython=True)
 def principal_argument(v):
     """Principal argument function
 
@@ -461,9 +383,37 @@ def principal_argument(v):
     Returns:
         w (float or np.ndarray): Principle value of v
     """
-    # TODO: refactor
     w = np.mod(v + 0.5, 1) - 0.5
     return w
+
+
+@jit(nopython=True)
+def compute_if(X, sampling_rate, N, H):
+    """Instantenous frequency (IF) estamation
+
+    Args:
+        X (np.ndarray): STFT
+        sampling_rate (scalar): Sampling rate
+        N (int): Window size in samples
+        H (int): Hop size in samples
+
+    Returns:
+        F_coef_IF (np.ndarray): Matrix of IF values
+    """
+    phi_1 = np.angle(X[:, 0:-1]) / (2 * np.pi)
+    phi_2 = np.angle(X[:, 1:]) / (2 * np.pi)
+
+    K = X.shape[0]
+    index_k = np.arange(0, K).reshape(-1, 1)
+    # Bin offset (FMP, Eq. (8.45))
+    kappa = (N / H) * principal_argument(phi_2 - phi_1 - index_k * H / N)
+    # Instantaneous frequencies (FMP, Eq. (8.44))
+    F_coef_IF = (index_k + kappa) * sampling_rate / N
+
+    # Extend F_coef_IF by copying first column to match dimensions of X
+    F_coef_IF = np.hstack((np.copy(F_coef_IF[:, 0]).reshape(-1, 1), F_coef_IF))
+
+    return F_coef_IF
 
 
 def compute_max_energy_frequency_over_time(X, F_coef_IF):
@@ -476,7 +426,6 @@ def compute_max_energy_frequency_over_time(X, F_coef_IF):
     Returns:
         max_energy_freq (np.ndarray): 1D array of dominant frequencies over time.
     """
-    # TODO: refactor
     # Magnitude of STFT values (|X|)
     magnitude = np.abs(X)
 
@@ -489,17 +438,29 @@ def compute_max_energy_frequency_over_time(X, F_coef_IF):
     return max_energy_freq
 
 
-def stft_pipeline(sig, sample_freq):
-    # TODO: REFACTOR
-    N = 8001
-    H = 20
-    X = librosa.stft(sig.astype("float"), n_fft=N, hop_length=H, win_length=N, window="hamming")
-    Y = np.log(1 + 10 * np.abs(X))
-    K = X.shape[0]
-    L = X.shape[1]
-    ylim = [0, 1500]
+def STFT(signal, sampling_rate, step_size, window_len):
+    """
+    Computes the Short-Time Fourier Transform (STFT) of a given signal, extracts instantaneous frequency, and computes
+    the dominant frequency over time.
 
-    F_coef_IF = compute_if(X, sample_freq, N, H)
-    max_energy_freq = compute_max_energy_frequency_over_time(X, F_coef_IF)
+    Args:
+        signal (numpy.ndarray): The input time-domain signal (1D array)
+        sampling_rate (int or float): The sampling frequency of the signal (in Hz)
+        step_size (int): Hop length, the number of samples between successive frames
+        window_len (int): Length of each FFT window (in samples)
 
-    return max_energy_freq
+    Returns:
+        freqs (numpy.ndarray): Array of dominant frequencies over time (in Hz).
+    """
+    # Compute the Short-Time Fourier Transform (STFT)
+    X = librosa.stft(
+        signal, n_fft=window_len, hop_length=step_size, win_length=window_len, window="hamming"
+    )
+
+    # Compute the instantaneous frequency (placeholder function)
+    F_coef_IF = compute_if(X, sampling_rate, window_len, step_size)
+
+    # Compute the dominant frequency over time (placeholder function)
+    freqs = compute_max_energy_frequency_over_time(X, F_coef_IF)
+
+    return freqs

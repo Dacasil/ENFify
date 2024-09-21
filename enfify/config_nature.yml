@@ -1,5 +1,4 @@
-##CONFIG for Data preprocessing
-
+##CONFIG for Data preprocessing CNN 
 
 # Nominal ENF
 nominal_enf: 50.0 # Hz
