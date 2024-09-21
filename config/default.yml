@@ -1,0 +1,33 @@
+# CONFIG FOR DATA PREPROCESSING
+
+
+# GENERAL
+nominal_enf: 50.0  # Hz
+log_level: 'INFO'  # Logging level for the application.
+
+
+# LOADING
+# Downsampling
+downsample_per_enf: 20  # Gets multiplied by nominal_enf to obtain the downsample frequency.
+
+
+# ENF ESTIMATION
+# Bandpass Filter Configuration
+bandpass_delta: .5  # Hz # Added and subtracted from nominal_enf to get the bandpass filter range.
+bandpass_order: 1 # TODO: Explain
+
+
+# FEATURE CALCULATION
+# Framing
+frame_len: 200  # milliseconds
+frame_step: 20  # milliseconds
+window_type: 'hann'  # Window type for windowing the frames.
+# Frequency Estimation
+n_dft: 20_000  # Number of DFT points for frequency estimation.
+
+
+# CLASSIFICATION
+feature_len: 490  # Length of feature vector section for model.
+
+# OUTPUT
+create_report: False  # If True, creates report files.
