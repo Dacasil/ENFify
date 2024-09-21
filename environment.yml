@@ -1,6 +1,7 @@
 name: enfify
 channels:
   - conda-forge
+  - pytorch
 dependencies:
   - python=3.10
   - black
@@ -19,6 +20,13 @@ dependencies:
   - scikit-learn
   - ffmpeg
   - librosa
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cpuonly  # Falls keine GPU-Unterstützung benötigt wird
+  # - cudatoolkit=11.8  # Falls GPU-Unterstützung gewünscht ist, ersetze 11.8 durch die gewünschte CUDA-Version
+  - ipywidgets
+  - ipykernel
   - pip:
     - python-dotenv
     - mkdocs
@@ -30,3 +38,4 @@ dependencies:
     - numba
     - ffmpeg-python
     - libfmp
+    - torchsummary
