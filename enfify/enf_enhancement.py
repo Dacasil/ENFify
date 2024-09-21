@@ -9,6 +9,7 @@ from tqdm import tqdm
 from numba import jit, prange
 from scipy.signal import get_window, windows
 from scipy.fft import fft
+import matplotlib.pyplot as plt
 
 
 # ...........................RFA................................#
@@ -69,6 +70,13 @@ def RFA(sig, fs, tau, epsilon, var_I, estimated_enf):
         peak_freqs = segmented_freq_estimation_DFT1(
             denoised_sig, fs, num_cycles=100, N_DFT=20_000, nominal_enf=estimated_enf
         )
+
+        plt.plot(peak_freqs)
+        plt.xlabel("Cycles of nominal enf")
+        plt.ylabel("Frequency Hz")
+        plt.title("Frequency vs Time")
+        plt.grid(True)
+        plt.show()
 
         base_repeats = Nx // len(peak_freqs)
         remainder = Nx % len(peak_freqs)
@@ -228,6 +236,128 @@ def VMD(signal, alpha, tau, num_modes, enforce_DC, tolerance):
         mode_spectra_final[:, mode] = np.fft.fftshift(np.fft.fft(modes[mode, :]))
 
     return modes, mode_spectra_final, final_freq_centers
+
+
+def VMD_2(signal, alpha, tau, num_modes, enforce_DC, tolerance):
+    """Variational Mode Decomposition (VMD)
+
+    Args:
+        signal (array): Input signal.
+        alpha (float): Regularization parameter for the modes.
+        tau (float): Time-step for dual ascent.
+        num_modes (int): Number of modes to extract.
+        enforce_DC (bool): Whether to enforce a DC component.
+        tolerance (float): Convergence tolerance.
+
+    Returns:
+        modes (array): Decomposed modes.
+        mode_spectra_final (array): Final mode spectra.
+        final_freq_centers (array): Center frequencies of modes.
+    """
+
+    # Mirror signal at boundaries (optimized)
+    signal_len = len(signal)
+    midpoint = signal_len // 2
+    if signal_len % 2:
+        mirrored_signal = np.concatenate(
+            [np.flipud(signal[:midpoint]), signal, np.flipud(signal[midpoint + 1 :])]
+        )
+    else:
+        mirrored_signal = np.concatenate(
+            [np.flipud(signal[:midpoint]), signal, np.flipud(signal[midpoint:])]
+        )
+
+    # Time and frequency domains
+    total_length = len(mirrored_signal)
+    time_domain = np.arange(total_length) / total_length
+    spectral_domain = time_domain - 0.5
+
+    # Precompute FFT of the mirrored signal
+    signal_spectrum = np.fft.fftshift(np.fft.fft(mirrored_signal))
+    positive_spectrum = np.zeros_like(signal_spectrum, dtype=complex)
+    positive_spectrum[total_length // 2 :] = signal_spectrum[total_length // 2 :]
+
+    # Mode and frequency center initialization
+    max_iterations = 500
+    mode_alphas = np.full(num_modes, alpha)
+    freq_centers = np.zeros((max_iterations, num_modes))
+
+    # Set initial frequency centers
+    freq_centers[0, :] = 0.5 / num_modes * np.arange(num_modes)
+    if enforce_DC:
+        freq_centers[0, 0] = 0
+
+    # Initialize dual variables and mode spectra
+    dual_vars = np.zeros(total_length, dtype=complex)
+    mode_spectra = np.zeros((max_iterations, total_length, num_modes), dtype=complex)
+
+    # Iteration parameters
+    convergence_criteria = tolerance + np.spacing(1)
+    iteration_count = 0
+
+    while convergence_criteria > tolerance and iteration_count < max_iterations - 1:
+        mode_sum = np.sum(mode_spectra[iteration_count, :, :], axis=1)
+
+        for mode in range(num_modes):
+            residual = positive_spectrum - mode_sum + mode_spectra[iteration_count, :, mode]
+            denom = (
+                1
+                + mode_alphas[mode] * (spectral_domain - freq_centers[iteration_count, mode]) ** 2
+            )
+
+            mode_spectra[iteration_count + 1, :, mode] = (residual - dual_vars / 2) / denom
+
+            if mode == 0 and enforce_DC:
+                freq_centers[iteration_count + 1, mode] = 0
+            else:
+                # Update frequency centers using the mode's positive frequencies
+                mode_fft_half = mode_spectra[iteration_count + 1, total_length // 2 :, mode]
+                freq_centers[iteration_count + 1, mode] = np.dot(
+                    spectral_domain[total_length // 2 :], np.abs(mode_fft_half) ** 2
+                ) / np.sum(np.abs(mode_fft_half) ** 2)
+
+        # Dual ascent step
+        dual_vars += tau * (
+            np.sum(mode_spectra[iteration_count + 1, :, :], axis=1) - positive_spectrum
+        )
+
+        # Check for convergence
+        convergence_criteria = np.linalg.norm(
+            mode_spectra[iteration_count + 1, :, :] - mode_spectra[iteration_count, :, :],
+            ord="fro",
+        ) / np.linalg.norm(mode_spectra[iteration_count, :, :], ord="fro")
+        iteration_count += 1
+
+    # Extract the final results
+    max_iterations = iteration_count
+    final_freq_centers = freq_centers[:max_iterations, :]
+
+    # Symmetrize the spectrum and reconstruct the signal modes
+    final_mode_spectra = np.zeros((total_length, num_modes), dtype=complex)
+    final_mode_spectra[total_length // 2 :, :] = mode_spectra[
+        max_iterations - 1, total_length // 2 :, :
+    ]
+
+    # Handling even/odd length symmetry
+    if total_length % 2 == 0:
+        final_mode_spectra[: total_length // 2, :] = np.conj(
+            final_mode_spectra[-1 : total_length // 2 - 1 : -1, :]
+        )
+    else:
+        final_mode_spectra[: total_length // 2 + 1, :] = np.conj(
+            final_mode_spectra[-1 : total_length // 2 : -1, :]
+        )
+
+    # Inverse FFT to obtain the modes
+    modes = np.real(np.fft.ifft(np.fft.ifftshift(final_mode_spectra, axes=0), axis=0))
+
+    # Trim the modes to the original signal length
+    modes = modes[total_length // 4 : 3 * total_length // 4, :]
+
+    # Compute the final spectra for the modes
+    mode_spectra_final = np.fft.fftshift(np.fft.fft(modes, axis=0), axes=0)
+
+    return modes.T, mode_spectra_final, final_freq_centers
 
 
 # ...................................Maximum Likelyhood estimator...................................#

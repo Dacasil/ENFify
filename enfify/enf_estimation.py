@@ -1,6 +1,8 @@
 """Module for ENF frequency and phase estimation"""
 
 import math
+
+import librosa
 import numpy as np
 import scipy.signal as signal
 from scipy.fft import fft
@@ -98,7 +100,7 @@ def freq_estimation_DFT1(s_tone, Fs, N_DFT):
 
 
 # Estimate phase with DFT¹ instantaneous estimation (Rodriguez Paper)
-def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated):
+def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated=None):
     """_summary_
 
     Args:
@@ -110,6 +112,9 @@ def phase_estimation_DFT1(s_tone, Fs, N_DFT, f0_estimated):
     Returns:
         _type_: _description_
     """
+
+    if f0_estimated is None:
+        f0_estimated = freq_estimation_DFT1(s_tone, Fs, N_DFT)
 
     # ......Estimate the frequency......#
     window_type = "hann"
@@ -180,7 +185,7 @@ def segmented_freq_estimation_DFT0(s_in, f_s, num_cycles, N_DFT, nominal_enf):
 
     num_blocks = len(s_in) // step_size - (num_cycles - 1)
 
-    segments = [s_in[i * step_size : (i + num_cycles) * step_size] for i in range(num_blocks)]
+    segments = [s_in[i * step_size : (i + num_cycles) * step_size + 1] for i in range(num_blocks)]
 
     freqs = []
     for i in range(len(segments)):
@@ -412,3 +417,89 @@ def scipy_IF_estimation(sig, fs):
     ]  # Extract peak for each point in time
 
     return peak_freqs
+
+
+# STFT
+def compute_if(X, Fs, N, H):
+    """Instantenous frequency (IF) estamation
+
+    | Notebook: C8/C8S2_InstantFreqEstimation.ipynb, see also
+    | Notebook: C6/C6S1_NoveltyPhase.ipynb
+
+    Args:
+        X (np.ndarray): STFT
+        Fs (scalar): Sampling rate
+        N (int): Window size in samples
+        H (int): Hop size in samples
+
+    Returns:
+        F_coef_IF (np.ndarray): Matrix of IF values
+    """
+    # TODO: refactor
+    phi_1 = np.angle(X[:, 0:-1]) / (2 * np.pi)
+    phi_2 = np.angle(X[:, 1:]) / (2 * np.pi)
+
+    K = X.shape[0]
+    index_k = np.arange(0, K).reshape(-1, 1)
+    # Bin offset (FMP, Eq. (8.45))
+    kappa = (N / H) * principal_argument(phi_2 - phi_1 - index_k * H / N)
+    # Instantaneous frequencies (FMP, Eq. (8.44))
+    F_coef_IF = (index_k + kappa) * Fs / N
+
+    # Extend F_coef_IF by copying first column to match dimensions of X
+    F_coef_IF = np.hstack((np.copy(F_coef_IF[:, 0]).reshape(-1, 1), F_coef_IF))
+
+    return F_coef_IF
+
+
+def principal_argument(v):
+    """Principal argument function
+
+    Args:
+        v (float or np.ndarray): Value (or vector of values)
+
+    Returns:
+        w (float or np.ndarray): Principle value of v
+    """
+    # TODO: refactor
+    w = np.mod(v + 0.5, 1) - 0.5
+    return w
+
+
+def compute_max_energy_frequency_over_time(X, F_coef_IF):
+    """Compute the dominant frequency over time based on max energy.
+
+    Args:
+        X (np.ndarray): STFT matrix (complex-valued).
+        F_coef_IF (np.ndarray): Instantaneous frequency matrix.
+
+    Returns:
+        max_energy_freq (np.ndarray): 1D array of dominant frequencies over time.
+    """
+    # TODO: refactor
+    # Magnitude of STFT values (|X|)
+    magnitude = np.abs(X)
+
+    # Find the index of the frequency bin with maximum magnitude in each time frame
+    max_energy_indices = np.argmax(magnitude, axis=0)
+
+    # Use these indices to extract the corresponding instantaneous frequencies
+    max_energy_freq = F_coef_IF[max_energy_indices, np.arange(F_coef_IF.shape[1])]
+
+    return max_energy_freq
+
+
+def stft_pipeline(sig, sample_freq):
+    # TODO: REFACTOR
+    N = 8001
+    H = 20
+    X = librosa.stft(sig.astype("float"), n_fft=N, hop_length=H, win_length=N, window="hamming")
+    Y = np.log(1 + 10 * np.abs(X))
+    K = X.shape[0]
+    L = X.shape[1]
+    ylim = [0, 1500]
+
+    F_coef_IF = compute_if(X, sample_freq, N, H)
+    max_energy_freq = compute_max_energy_frequency_over_time(X, F_coef_IF)
+
+    return max_energy_freq

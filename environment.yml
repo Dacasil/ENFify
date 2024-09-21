@@ -19,6 +19,7 @@ dependencies:
   - pandas
   - scikit-learn
   - ffmpeg
+  - librosa
   - pytorch
   - torchvision
   - torchaudio
@@ -36,4 +37,5 @@ dependencies:
     - fpdf
     - numba
     - ffmpeg-python
+    - libfmp
     - torchsummary
