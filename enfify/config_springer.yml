@@ -1,7 +1,7 @@
 ##CONFIG for Data preprocessing CNN 
 
 # Nominal ENF
-nominal_enf: 100.0       # Expected ENF frequency in Hz
+nominal_enf: 50.0       # Expected ENF frequency in Hz
 
 # Windowing
 window_type: 'hann'
@@ -18,13 +18,15 @@ bandpass_filter:
   lowcut: 99.5    # Low cut frequency in Hz
   highcut: 100.5   # High cut frequency in Hz
   order: 1
+  #deltaf: 0.6
+  #N: 10_000
 
 
 # Variational Mode Decomposition (VMD)
 VMD: 
   is_enabled: false
-  loop: 5              # Number of VMD iterations
-  alpha: 5000          # Balancing parameter of the data-fidelity constraint
+  loop: 1              # Number of VMD iterations
+  alpha: 5_000          # Balancing parameter of the data-fidelity constraint
   tau: 0               # Noise-tolerance (no strict fidelity enforcement)
   n_mode: 1            # Number of modes to be recovered
   DC: false            # True if the first mode is to be DC (0-freq)
@@ -33,16 +35,16 @@ VMD:
 
 # Robust Filtering Algorithm (RFA)
 RFA: 
-  is_enabled: false
+  is_enabled: true
   f0: 50                   # estimated frequency (here ENF second harmonic)     
   I: 3                      # Number of RFA repeats
-  tau: 1000                # RFA winoow size
+  tau: 2500             # RFA winoow size
   epsilon: !!float 1e-20    # Noise-tolerance (no strict fidelity enforcement)
 
 
 # Phase Estimation Configuration
 phase_estimation:
-  n_dft: 20000             # Number of points in DFT for phase estimation
+  n_dft: 20_000             # Number of points in DFT for phase estimation
   step_size: 20            # Step Size
   window_len: 200          # Window Length
 
@@ -61,4 +63,4 @@ feature_matrices:
 
 
 # Plot Results
-plot: true        # TODO: Switch not used yet.
+plot: true      # TODO: Switch not used yet.

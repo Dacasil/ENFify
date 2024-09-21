@@ -22,6 +22,7 @@ uncut_files = sorted(glob(str(uncut_files)))
 uncut_spatial = []
 uncut_temporal = []
 
+
 # Cut
 cut_files = Path(RAW_DATA_DIR / "Carioca1" / "tampered" / "*.wav")
 cut_files = sorted(glob(str(cut_files)))

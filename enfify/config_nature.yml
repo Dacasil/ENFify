@@ -56,4 +56,4 @@ freq_estimation:
 
 # Plot Results
 plot_results:
-  is_enabled: true         # TODO: Switch not used yet.
+  is_enabled: false         # TODO: Switch not used yet.
