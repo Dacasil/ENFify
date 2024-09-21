@@ -23,8 +23,8 @@ dependencies:
   - pytorch
   - torchvision
   - torchaudio
-  - cpuonly  # Falls keine GPU-Unterstützung benötigt wird
-  # - cudatoolkit=11.8  # Falls GPU-Unterstützung gewünscht ist, ersetze 11.8 durch die gewünschte CUDA-Version
+  - cpuonly
+  # - cudatoolkit=11.8
   - ipywidgets
   - ipykernel
   - pip:
