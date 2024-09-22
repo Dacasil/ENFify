@@ -30,14 +30,14 @@ def main(
     nominal_enf: Annotated[float, typer.Option(help="Nominal ENF frequency.")] = DEFAULT["nominal_enf"],
     downsample_per_enf: Annotated[float, typer.Option(help="Gets multiplied by nominal_enf to obtain the downsample frequency.")] = DEFAULT["downsample_per_enf"],
     bandpass_delta: Annotated[float, typer.Option(help="Bandpass filter delta in Hertz. Added and subtracted from nominal_enf to get the bandpass filter range.")] = DEFAULT["bandpass_delta"],
-    bandpass_order: Annotated[int, typer.Option(help="Bandpass filter order.")] = DEFAULT["bandpass_order"],
+    # bandpass_order: Annotated[int, typer.Option(help="Bandpass filter order.")] = DEFAULT["bandpass_order"],
     frame_len: Annotated[float, typer.Option(help="Frame length for feature calculation in milliseconds.")] = DEFAULT["frame_len"],
     frame_step: Annotated[float, typer.Option(help="Frame step for feature calculation in milliseconds.")] = DEFAULT["frame_step"],
     window_type: Annotated[str, typer.Option(help="Window type for windowing the frames.")] = DEFAULT["window_type"],
     n_dft: Annotated[int, typer.Option(help="Number of DFT points for frequency estimation.")] = DEFAULT["n_dft"],
     feature_len: Annotated[int, typer.Option(help="Number of features to use for classification.")] = DEFAULT["feature_len"],
     create_report: Annotated[bool, typer.Option(help="Create a report of the classification.")] = DEFAULT["create_report"],
-    log_level: Annotated[str, typer.Option(help="Log level for the logger.")] = DEFAULT["log_level"],
+    # log_level: Annotated[str, typer.Option(help="Log level for the logger.")] = DEFAULT["log_level"],
     # fmt: on
 ):  # TODO: -> ...
     """Program to classify an audiofile as authentic or tampered based on the ENF signal."""
@@ -73,13 +73,13 @@ def main(
     sample_freq, sig = wavfile.read(audio_file)
 
     # Preprocessing
-    feature_freq = feature_freq_pipeline(sig, sample_freq, config)
+    feature_freqs_vector = feature_freq_pipeline(sig, sample_freq, config)
 
     # Classification
     feature_len = config["feature_len"]
     feature_freq = 1000 / config["frame_step"]
     min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
-    sections = sectioning(feature_freq, feature_len, min_overlap)
+    sections = sectioning(feature_freqs_vector, feature_len, min_overlap)
 
     labels = [cnn_classifier(section) for section in sections]
 

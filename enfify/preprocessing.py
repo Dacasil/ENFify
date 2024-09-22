@@ -42,7 +42,7 @@ def downsample_ffmpeg(sig, sampling_rate, downsampling_rate):
 
 
 # The prefered bandpassfilter
-def butterworth_bandpass_filter(sig, sampling_rate, lowcut, highcut, order):
+def fir_bandpass_filter(sig, sampling_rate, lowcut, highcut, order):
     """
     Applies a zero-phase FIR bandpass filter to the input signal.
 
