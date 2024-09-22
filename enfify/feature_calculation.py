@@ -4,7 +4,8 @@ from scipy.signal import get_window
 
 
 def framing(sig, sample_freq, frame_len, frame_shift, window_type):
-    """Split signal into frames.
+    """Split signal into frames. Each frame is windowed using the specified window type.
+    Exact frame length and shift.
 
     Args:
         sig (numpy.ndarray): Signal to be split into frames.
@@ -13,6 +14,8 @@ def framing(sig, sample_freq, frame_len, frame_shift, window_type):
         frame_shift (float): Frame shift in milliseconds.
         window_type (str): Window type for windowing the frames.
     """
+    # TODO: Error handling for frame_len and frame_shift
+
     frame_len_samples = int(frame_len / 1000 * sample_freq)
     frame_shift_samples = int(frame_shift / 1000 * sample_freq)
 

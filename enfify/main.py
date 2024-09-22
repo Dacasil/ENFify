@@ -3,7 +3,6 @@ import sys
 import warnings
 from pathlib import Path
 
-import numpy as np
 import typer
 import yaml
 from loguru import logger
@@ -13,22 +12,13 @@ from rich.text import Text
 from scipy.io import wavfile
 from typing_extensions import Annotated
 
-from enfify import (
-    CONFIG_DIR,
-    butterworth_bandpass_filter,
-    cnn_classifier,
-    downsample_ffmpeg,
-    framing,
-    freq_estimation_DFT1,
-    report,
-    sectioning,
-)
+from enfify import CONFIG_DIR, cnn_classifier, feature_freq_pipeline, report, sectioning
 
 warnings.filterwarnings("ignore", category=wavfile.WavFileWarning)
 app = typer.Typer()
 
-DEFAULT_FILE = CONFIG_DIR / "default.yml"
-with open(DEFAULT_FILE, "r") as f:
+DEFAULT_CONFIG_FILE = CONFIG_DIR / "default.yml"
+with open(DEFAULT_CONFIG_FILE, "r") as f:
     DEFAULT = yaml.safe_load(f)
 
 
@@ -54,7 +44,6 @@ def main(
 
     # Config
     # TODO: Refactor to a function
-    # TODO: Maybe use a library like dynaconf
     # prio 3
     config = DEFAULT.copy()
     # prio 2
@@ -79,40 +68,20 @@ def main(
     logger.remove()
     logger.add(sys.stderr, level=config["log_level"])
 
-    print(f"[bold white]Analyzing audio file: [bold cyan]{audio_file}[/bold cyan][/bold white]")
     # Loading
+    print(f"[bold white]Analyzing audio file: [bold cyan]{audio_file}[/bold cyan][/bold white]")
     sample_freq, sig = wavfile.read(audio_file)
 
-    # Downsampling
-    downsample_freq = config["downsample_per_enf"] * config["nominal_enf"]
-    sig, sample_freq = downsample_ffmpeg(sig, sample_freq, downsample_freq)
-
-    # Bandpass Filter
-    lowcut = config["nominal_enf"] - config["bandpass_delta"]
-    highcut = config["nominal_enf"] + config["bandpass_delta"]
-    bandpass_order = config["bandpass_order"]
-    sig = butterworth_bandpass_filter(sig, sample_freq, lowcut, highcut, bandpass_order)
-
-    # Frame Splitting
-    window_type = config["window_type"]
-    frame_len = config["frame_len"]
-    frame_shift = config["frame_step"]
-    frames = framing(sig, sample_freq, frame_len, frame_shift, window_type)
-
-    # Frequency Estimation
-    n_dft = config["n_dft"]
-    window_type = config["window_type"]
-    feature_freqs = np.array(
-        [freq_estimation_DFT1(frame, sample_freq, n_dft, window_type) for frame in frames]
-    )
+    # Preprocessing
+    feature_freq = feature_freq_pipeline(sig, sample_freq, config)
 
     # Classification
     feature_len = config["feature_len"]
     feature_freq = 1000 / config["frame_step"]
     min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
-    sections = sectioning(feature_freqs, feature_len, min_overlap)
+    sections = sectioning(feature_freq, feature_len, min_overlap)
 
-    labels = [cnn_classifier(feature_freqs) for section in sections]
+    labels = [cnn_classifier(section) for section in sections]
 
     # Output
     if any(labels):
@@ -121,9 +90,7 @@ def main(
     else:
         result = "Authentic"
         style = "bold green"
-    # fmt: off
-    print(Panel(Text(text=result, style=style, justify="center"), expand=False))
-    # fmt: on
+    print(Panel(Text(text=result, style=style), expand=False))
 
     if config["create_report"]:
         report(config, labels)
