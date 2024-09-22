@@ -70,7 +70,7 @@ def augmentation(
 
     cut_info = {}
     i_clip_total = 0
-    for file in tqdm(files):
+    for file in tqdm(files, desc=f"Augmenting {os.path.basename(interim_dir)}"):
         basename = zero_pad_number_in_filename(os.path.splitext(os.path.basename(file))[0], 2)
 
         rate, data = wavfile.read(file)

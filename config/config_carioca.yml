@@ -1,18 +1,6 @@
-# DEFAULT CONFIGURATION
-
-
-# #### APPLICATION CONFIGURATION ####
-log_level: 'INFO'  # Logging level for the application.
-create_report: False  # If True, creates report files.
-
-
-# #### CLASSIFICATION ####
-feature_len: 490  # Length of feature vector section for model.
-
-
 # #### PREPROCESSING CONFIGURATION ####
 # General
-nominal_enf: 50.0  # Hz
+nominal_enf: 60.0  # Hz
 
 # LOADING
 # Downsampling

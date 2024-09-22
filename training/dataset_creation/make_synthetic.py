@@ -1,6 +1,4 @@
 import json
-import os
-import sys
 
 import numpy as np
 from locallib import create_auth_tamp_clip
@@ -51,27 +49,24 @@ def func_ENF_synthesis_corrupted_harmonic(
 
     if corrupt:
         index = np.intersect1d(harmonic_index, corrupted_index) - 1
-        for i in range(len(index)):
-            enf_freqs[index[i], :] = enf_freqs[index[i], :] + 5 * np.random.randn(N)
+        enf_freqs[index, :] += 5 * np.random.randn(len(index), N)
 
     # Instantaneous amplitudes and initial phases
     N_harmonic = len(harmonic_index)
     amps = 1 + np.random.randn(N_harmonic, N) * 0.005  # instantaneous amplitudes
     phases = np.random.uniform(0, 2 * np.pi, N_harmonic)  # initial phases
 
-    # Synthesize time domain waveforms
-    ENF_multi = np.zeros((N_harmonic, N))
-    for n in range(N):
-        ENF_multi[:, n] = amps[:, n] * np.cos(
-            2 * np.pi / fs * np.sum(enf_freqs[:, : n + 1], axis=1) + phases
-        )
+    # Synthesize time domain waveforms using broadcasting and cumulative sum
+    ENF_multi = amps * np.cos(
+        2 * np.pi / fs * np.cumsum(enf_freqs, axis=1) + phases[:, np.newaxis]
+    )
 
+    # Normalize harmonics and sum them
     for i in range(min(6, N_harmonic)):
-        ENF_multi[i, :] = ENF_multi[i, :] / np.linalg.norm(ENF_multi[i, :])
+        ENF_multi[i, :] /= np.linalg.norm(ENF_multi[i, :])
 
     sig = np.sum(ENF_multi, axis=0)
-    sig_harmonics = ENF_multi  # noqa: F841
-    sig = sig / np.linalg.norm(sig)  # ensure unit norm
+    sig /= np.linalg.norm(sig)  # ensure unit norm
 
     return sig, fs
 

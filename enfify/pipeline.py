@@ -1,7 +1,7 @@
 import numpy as np
 
-from .preprocessing import butterworth_bandpass_filter, downsample_ffmpeg
 from .feature_calculation import framing, freq_estimation_DFT1
+from .preprocessing import butterworth_bandpass_filter, downsample_ffmpeg
 
 
 def feature_freq_pipeline(sig, sample_freq, config):
