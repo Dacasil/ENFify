@@ -1,7 +1,11 @@
 import numpy as np
 
-from .feature_calculation import framing, freq_estimation_DFT1
-from .preprocessing import butterworth_bandpass_filter, downsample_ffmpeg
+from enfify.feature_calculation import framing, freq_estimation_DFT1
+from enfify.preprocessing import (
+    butterworth_bandpass_filter,
+    downsample_ffmpeg,
+    fir_bandpass_filter,
+)
 
 
 def feature_freq_pipeline(sig, sample_freq, config):
@@ -29,3 +33,21 @@ def feature_freq_pipeline(sig, sample_freq, config):
     )
 
     return feature_freq
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+
+    import yaml
+    from scipy.io import wavfile
+
+    from enfify.visualization import plot_feature_freq
+
+    path = Path("/home/cloud/enfify/data/interim/Carioca1/HC01-00-tamp.wav")
+    sample_freq, sig = wavfile.read(path)
+    with open("/home/cloud/enfify/config/default.yml", "r") as f:
+        config = yaml.safe_load(f)
+    with open("/home/cloud/enfify/config/config_carioca.yml", "r") as f:
+        config.update(yaml.safe_load(f))
+    feature_freq = feature_freq_pipeline(sig, sample_freq, config)
+    plot_feature_freq(feature_freq, path.name)

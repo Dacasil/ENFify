@@ -6,8 +6,8 @@ log_level: 'INFO'  # Logging level for the application.
 create_report: False  # If True, creates report files.
 
 
-# #### CLASSIFICATION ####
-feature_len: 490  # Length of feature vector section for model.
+# #### CLASSIFICATION CNN ####
+feature_len: 411  # Length of feature vector section for model.
 
 
 # #### PREPROCESSING CONFIGURATION ####

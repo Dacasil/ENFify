@@ -12,7 +12,15 @@ from rich.text import Text
 from scipy.io import wavfile
 from typing_extensions import Annotated
 
-from enfify import CONFIG_DIR, cnn_classifier, feature_freq_pipeline, report, sectioning
+from enfify import (
+    CONFIG_DIR,
+    MODELS_DIR,
+    cnn_classifier,
+    feature_freq_pipeline,
+    report,
+    sectioning,
+    plot_feature_freq,
+)
 
 warnings.filterwarnings("ignore", category=wavfile.WavFileWarning)
 app = typer.Typer()
@@ -22,8 +30,9 @@ with open(DEFAULT_CONFIG_FILE, "r") as f:
     DEFAULT = yaml.safe_load(f)
 
 
+# @app.callback(invoke_without_command=True)
 @app.command()
-def main(
+def detect(
     # fmt: off
     audio_file: Annotated[Path, typer.Argument(help="Path to the audio file to detect.")],
     config_file: Annotated[Path, typer.Option(help="Path to a config file.")] = None,
@@ -50,7 +59,8 @@ def main(
     if config_file is not None:
         try:
             with open(config_file, "r") as f:
-                config.update(yaml.safe_load(f))
+                update = yaml.safe_load(f)
+                config.update(update)
         except Exception as e:
             logger.warning(
                 f"Could not load config file: {e}, using CLI Parameter and defaults only."
@@ -59,14 +69,17 @@ def main(
     _locals = locals()
     kwargs = {
         k: _locals[k]
-        for k, v in inspect.signature(main).parameters.items()
-        if v.default != inspect.Parameter.empty
+        for k in inspect.signature(detect).parameters.keys()
+        if _locals[k] != DEFAULT.get(k)
     }
     config.update(kwargs)
+    del _locals, kwargs, update
+
+    logger.debug(config["nominal_enf"])
 
     # Setup
     logger.remove()
-    logger.add(sys.stderr, level=config["log_level"])
+    logger.add(sys.stderr, level=config["log_level"].upper())
 
     # Loading
     print(f"[bold white]Analyzing audio file: [bold cyan]{audio_file}[/bold cyan][/bold white]")
@@ -74,6 +87,8 @@ def main(
 
     # Preprocessing
     feature_freqs_vector = feature_freq_pipeline(sig, sample_freq, config)
+    plot_feature_freq(feature_freqs_vector, audio_file.name)
+    feature_freqs_vector = feature_freqs_vector[40:-40]
 
     # Classification
     feature_len = config["feature_len"]
@@ -81,7 +96,9 @@ def main(
     min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
     sections = sectioning(feature_freqs_vector, feature_len, min_overlap)
 
-    labels = [cnn_classifier(section) for section in sections]
+    model_path = max(MODELS_DIR.glob("onedcnn*.pth"), key=lambda x: x.stat().st_ctime)
+    labels = [cnn_classifier(model_path, section) for section in sections]
+    logger.debug(f"labels: {labels}")
 
     # Output
     if any(labels):
@@ -94,6 +111,16 @@ def main(
 
     if config["create_report"]:
         report(config, labels)
+
+
+@app.command()
+def configfile():
+    raise NotImplementedError("Not implemented yet.")
+
+
+@app.command()
+def synthexample():
+    raise NotImplementedError("Not implemented yet.")
 
 
 if __name__ == "__main__":
