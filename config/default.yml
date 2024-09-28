@@ -1,6 +1,3 @@
-# DEFAULT CONFIGURATION
-
-
 # #### APPLICATION CONFIGURATION ####
 log_level: 'INFO'  # Logging level for the application.
 create_report: False  # If True, creates report files.

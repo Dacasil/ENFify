@@ -18,6 +18,50 @@ from enfify import EXTERNAL_DATA_DIR
 np.random.seed(42)
 
 
+def download_whu_git():
+    repo_url = "https://github.com/ghua-ac/ENF-WHU-Dataset.git"
+    commit_hash = "78ed7f3784949f769f291fc1cb94acd10da6322f"
+    specific_folders = ["ENF-WHU-Dataset/H1", "ENF-WHU-Dataset/H1_ref"]
+    specific_folders_common_base = "ENF-WHU-Dataset"
+    target_dir = EXTERNAL_DATA_DIR
+
+    # Create a temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Clone the repository with a sparse-checkout filter
+        logger.debug("Cloning repository")
+        subprocess.run(
+            ["git", "clone", "--filter=blob:none", "--sparse", repo_url, temp_dir], check=True
+        )
+
+        # Change to the temporary directory
+        os.chdir(temp_dir)
+
+        # Set up sparse-checkout
+        subprocess.run(["git", "sparse-checkout", "init"], check=True)
+
+        # Define the paths to download
+        with open(".git/info/sparse-checkout", "w") as sparse_file:
+            for specific_folder in specific_folders:
+                sparse_file.write(f"{specific_folder}/\n")
+
+        logger.debug("Fetching content")
+        subprocess.run(["git", "checkout", commit_hash], check=True)
+        logger.debug("Content fetched")
+
+        # Path to the specific folder
+        specific_folder_path = Path(temp_dir) / specific_folders_common_base
+
+        # Move the specific folder to the target directory
+        if specific_folder_path.exists():
+            shutil.move(str(specific_folder_path), str(target_dir))
+            logger.info(f"Successfully moved {specific_folder_path} to {target_dir}")
+        else:
+            logger.info(f"Folder {specific_folder_path} not found.")
+
+        # The temporary directory will be automatically deleted when the context manager ends
+
+
+# TODO: Implement or remove this function
 def download_whu_zip():
     raise NotImplementedError(
         "This function does not work yet because it doesn't distinguish between zip dirs and zip files properly."
@@ -75,49 +119,6 @@ def download_whu_zip():
                 logger.info(f"Folder {dataset_basename} extracted successfully to {extract_path}")
     else:
         logger.info(f"Failed to download the repository: {response.status_code}")
-
-
-def download_whu_git():
-    repo_url = "https://github.com/ghua-ac/ENF-WHU-Dataset.git"
-    commit_hash = "78ed7f3784949f769f291fc1cb94acd10da6322f"
-    specific_folders = ["ENF-WHU-Dataset/H1", "ENF-WHU-Dataset/H1_ref"]
-    specific_folders_common_base = "ENF-WHU-Dataset"
-    target_dir = EXTERNAL_DATA_DIR
-
-    # Create a temporary directory
-    with tempfile.TemporaryDirectory() as temp_dir:
-        # Clone the repository with a sparse-checkout filter
-        logger.debug("Cloning repository")
-        subprocess.run(
-            ["git", "clone", "--filter=blob:none", "--sparse", repo_url, temp_dir], check=True
-        )
-
-        # Change to the temporary directory
-        os.chdir(temp_dir)
-
-        # Set up sparse-checkout
-        subprocess.run(["git", "sparse-checkout", "init"], check=True)
-
-        # Define the paths to download
-        with open(".git/info/sparse-checkout", "w") as sparse_file:
-            for specific_folder in specific_folders:
-                sparse_file.write(f"{specific_folder}/\n")
-
-        logger.debug("Fetching content")
-        subprocess.run(["git", "checkout", commit_hash], check=True)
-        logger.debug("Content fetched")
-
-        # Path to the specific folder
-        specific_folder_path = Path(temp_dir) / specific_folders_common_base
-
-        # Move the specific folder to the target directory
-        if specific_folder_path.exists():
-            shutil.move(str(specific_folder_path), str(target_dir))
-            logger.info(f"Successfully moved {specific_folder_path} to {target_dir}")
-        else:
-            logger.info(f"Folder {specific_folder_path} not found.")
-
-        # The temporary directory will be automatically deleted when the context manager ends
 
 
 if __name__ == "__main__":

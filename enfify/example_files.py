@@ -1,27 +1,13 @@
-import json
-
 import numpy as np
-from locallib import create_auth_tamp_clip
-from tqdm import tqdm
-
-from enfify import INTERIM_DATA_DIR
-
-NUM_CLIPS = 2000  # Number of files to generate
-
-CLIP_LENGTH = 10  # in seconds
-MAX_CUTLEN = 2  # in seconds
-
-SAMPLE_RATE = 1000  # Sampling rate in Hz
-NOMINAL_FREQ = 50  # Nominal frequency in Hz
+from scipy.io import wavfile
 
 
-# use enfify.example_files
-def _func_ENF_synthesis_corrupted_harmonic(
-    fundamental_f=NOMINAL_FREQ,
+def func_ENF_synthesis_corrupted_harmonic(
+    fundamental_f=50,
     harmonic_index=range(1, 7),
     corrupted_index=range(3, 7),
-    duration=CLIP_LENGTH + MAX_CUTLEN,
-    fs=SAMPLE_RATE,
+    duration=12,
+    fs=1000,
     corrupt=False,
 ):
     """
@@ -72,28 +58,31 @@ def _func_ENF_synthesis_corrupted_harmonic(
     return sig, fs
 
 
-if __name__ == "__main__":
-    interim_dir = INTERIM_DATA_DIR / "Synthetic"
-    interim_dir.mkdir(parents=True)
+def create_auth_tamp_clip(raw_sig, sample_rate, clip_length, max_cutlen, auth_path, tamp_path):
+    """
+    Creates an authenticated and a tampered audio clip from the given raw signal.
 
-    cliplen_samples = int(CLIP_LENGTH * SAMPLE_RATE)
+    Args:
+        raw_sig (ndarray): The raw audio signal.
+        sample_rate (int): The sample rate of the audio signal.
+        clip_length (float): The desired length of the audio clip in seconds.
+        max_cutlen (float): The maximum length of the cut in seconds.
+        auth_path (Path): The path of the authenticated audio clip.
+        tamp_path (Path): The path of the tampered audio clip.
 
-    cut_info = {}
-    for i in tqdm(range(NUM_CLIPS)):
-        auth_path = interim_dir / f"synth-{i:04}-auth.wav"
-        tamp_path = interim_dir / f"synth-{i:04}-tamp.wav"
+    Returns:
+        int: The start index of the cut in the raw signal.
+        int: The length of the cut in the raw signal.
+    """
+    cliplen_samples = int(clip_length * sample_rate)
 
-        # if auth_path.exists() and tamp_path.exists():
-        #     continue
+    auth_sig = raw_sig[:cliplen_samples]
+    wavfile.write(auth_path, sample_rate, auth_sig)
 
-        raw_sig, _ = func_ENF_synthesis_corrupted_harmonic()
+    max_cutlen_samples = int(max_cutlen * sample_rate)
+    cutlen_samples = np.random.randint(max_cutlen_samples) + 1
+    start = np.random.randint(0, cliplen_samples - cutlen_samples)
+    tamp_sig = np.delete(raw_sig.copy(), slice(start, start + cutlen_samples))[:cliplen_samples]
+    wavfile.write(tamp_path, sample_rate, tamp_sig)
 
-        start_ind, cutlen_samples = create_auth_tamp_clip(
-            raw_sig, SAMPLE_RATE, CLIP_LENGTH, MAX_CUTLEN, auth_path, tamp_path
-        )
-
-        cut_info[tamp_path.name] = {"start": start_ind, "cutlen": cutlen_samples}
-
-    cut_info_path = interim_dir / "cut_info.json"
-    with open(cut_info_path, "w") as f:
-        json.dump(cut_info, f, indent=4)
+    return start, cutlen_samples
