@@ -4,9 +4,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.preprocessing import robust_scale
 
 from enfify.config import DATA_DIR
-from enfify.utils import normalize_robust
 
 
 class OneDCNN(nn.Module):
@@ -64,8 +64,11 @@ def cnn_classifier(model_path, feature_vector):
     )
     model.eval()  # Set model to evaluation mode
 
+    # Normalize
+    feature_vector = robust_scale(feature_vector[None, :], axis=1)
+    feature_vector = feature_vector.squeeze(0)
+
     # Convert feature vector to a torch tensor and add batch and channel dimensions
-    feature_vector = normalize_robust(feature_vector)  # TODO: rows and cols checken
     feature_vector = torch.tensor(feature_vector, dtype=torch.float32)
     feature_vector = feature_vector.unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, feature_length)
 

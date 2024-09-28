@@ -8,7 +8,66 @@ from enfify.preprocessing import (
 )
 
 
+def feature_freq_bilstm_pipeline(sig, sample_freq, config):
+    """
+    Processes an audio signal to extract frequency features for a CNN BiLSTM pipeline.
+
+    Args:
+        sig (numpy.ndarray): The input audio signal
+        sample_freq (float): The sampling frequency of the input signal
+        config (dict): Configuration dictionary containing parameters for processing
+
+    Returns:
+        tuple: A tuple containing:
+            - numpy.ndarray: The extracted spatial features.
+            - numpy.ndarray: The extracted temporal features.
+
+    Process:
+        - Downsamples the signal if enabled.
+        - Applies a bandpass filter if spenabled.
+        - Performs Variational Mode Decomposition (VMD) if enabled.
+        - Applies a Robust Filtering Algorithm (RFA) if enabled.
+        - Estimates the instantaneous frequencies using STFT.
+        - Trims the boundary values from the frequency estimates.
+        - Extracts spatial and temporal features for CNN BiLSTM processing.
+    """
+
+    feature_freq = feature_freq_pipeline(sig, sample_freq, config)
+
+    # Cut the boundary to weaken boundary value problems
+    feature_freq = feature_freq[40:-40]
+
+    # CNN BiLSTM feature processing
+    sn = config["bilstm_sn"]
+    fl = config["bilstm_fl"]
+    fn = config["bilstm_fn"]
+
+    spatial_features = extract_spatial_features(feature_freq, sn)
+    temporal_features = extract_temporal_features(feature_freq, fl, fn)
+
+    return spatial_features, temporal_features
+
+
 def feature_freq_pipeline(sig, sample_freq, config):
+    """
+    Processes an audio signal to extract frequency features.
+
+    Args:
+        sig (numpy.ndarray): The input audio signal
+        sample_freq (float): The sampling frequency of the input signal
+        config (dict): Configuration dictionary containing parameters for processing
+
+    Returns:
+        tuple: A tuple containing:
+            - numpy.ndarray: The extracted spatial features.
+            - numpy.ndarray: The extracted temporal features.
+
+    Process:
+        - Downsamples the signal.
+        - Applies a bandpass filter.
+        - Estimates the instantaneous frequencies.
+        - Trims the boundary values from the frequency estimates.
+    """
     # Downsampling
     downsample_freq = config["downsample_per_enf"] * config["nominal_enf"]
     sig, sample_freq = downsample_ffmpeg(sig, sample_freq, downsample_freq)
@@ -31,6 +90,9 @@ def feature_freq_pipeline(sig, sample_freq, config):
     feature_freq = np.array(
         [freq_estimation_DFT1(frame, sample_freq, n_dft, window_type) for frame in frames]
     )
+
+    trim = config["feature_trim"]
+    feature_freq = feature_freq[trim:-trim]
 
     return feature_freq
 

@@ -16,13 +16,17 @@ from enfify import (
     CONFIG_DIR,
     MODELS_DIR,
     cnn_classifier,
+    bilstm_classifier,
     feature_freq_pipeline,
     report,
     sectioning,
     plot_feature_freq,
 )
 
+logger.remove()
+logger.add(sys.stderr, level="INFO")
 warnings.filterwarnings("ignore", category=wavfile.WavFileWarning)
+
 app = typer.Typer()
 
 DEFAULT_CONFIG_FILE = CONFIG_DIR / "default.yml"
@@ -36,78 +40,50 @@ def detect(
     # fmt: off
     audio_file: Annotated[Path, typer.Argument(help="Path to the audio file to detect.")],
     config_file: Annotated[Path, typer.Option(help="Path to a config file.")] = None,
+    classifier: Annotated[str, typer.Option(help="Classifier to use for classification (cnn|cnn-bilstm).")] = DEFAULT["classifier"],
     nominal_enf: Annotated[float, typer.Option(help="Nominal ENF frequency.")] = DEFAULT["nominal_enf"],
     downsample_per_enf: Annotated[float, typer.Option(help="Gets multiplied by nominal_enf to obtain the downsample frequency.")] = DEFAULT["downsample_per_enf"],
     bandpass_delta: Annotated[float, typer.Option(help="Bandpass filter delta in Hertz. Added and subtracted from nominal_enf to get the bandpass filter range.")] = DEFAULT["bandpass_delta"],
-    # bandpass_order: Annotated[int, typer.Option(help="Bandpass filter order.")] = DEFAULT["bandpass_order"],
     frame_len: Annotated[float, typer.Option(help="Frame length for feature calculation in milliseconds.")] = DEFAULT["frame_len"],
     frame_step: Annotated[float, typer.Option(help="Frame step for feature calculation in milliseconds.")] = DEFAULT["frame_step"],
-    window_type: Annotated[str, typer.Option(help="Window type for windowing the frames.")] = DEFAULT["window_type"],
-    n_dft: Annotated[int, typer.Option(help="Number of DFT points for frequency estimation.")] = DEFAULT["n_dft"],
-    feature_len: Annotated[int, typer.Option(help="Number of features to use for classification.")] = DEFAULT["feature_len"],
     create_report: Annotated[bool, typer.Option(help="Create a report of the classification.")] = DEFAULT["create_report"],
-    # log_level: Annotated[str, typer.Option(help="Log level for the logger.")] = DEFAULT["log_level"],
     # fmt: on
-):  # TODO: -> ...
+):
     """Program to classify an audiofile as authentic or tampered based on the ENF signal."""
 
     # Config
-    # TODO: Refactor to a function
-    # prio 3
-    config = DEFAULT.copy()
-    # prio 2
-    if config_file is not None:
-        try:
-            with open(config_file, "r") as f:
-                update = yaml.safe_load(f)
-                config.update(update)
-        except Exception as e:
-            logger.warning(
-                f"Could not load config file: {e}, using CLI Parameter and defaults only."
-            )
-    # prio 1
-    _locals = locals()
-    kwargs = {
-        k: _locals[k]
-        for k in inspect.signature(detect).parameters.keys()
-        if _locals[k] != DEFAULT.get(k)
-    }
-    config.update(kwargs)
-    del _locals, kwargs, update
-
-    logger.debug(config["nominal_enf"])
-
-    # Setup
-    logger.remove()
-    logger.add(sys.stderr, level=config["log_level"].upper())
+    config = select_config(DEFAULT, config_file, locals())
 
     # Loading
     print(f"[bold white]Analyzing audio file: [bold cyan]{audio_file}[/bold cyan][/bold white]")
     sample_freq, sig = wavfile.read(audio_file)
 
     # Preprocessing
-    feature_freqs_vector = feature_freq_pipeline(sig, sample_freq, config)
-    plot_feature_freq(feature_freqs_vector, audio_file.name)
-    feature_freqs_vector = feature_freqs_vector[40:-40]
+    feature_freq_vector = feature_freq_pipeline(sig, sample_freq, config)
 
     # Classification
-    feature_len = config["feature_len"]
-    feature_freq = 1000 / config["frame_step"]
-    min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
-    sections = sectioning(feature_freqs_vector, feature_len, min_overlap)
+    if classifier == "cnn":
+        feature_len = config["feature_len"]
+        feature_freq = 1000 / config["frame_step"]
+        min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
+        sections = sectioning(feature_freq_vector, feature_len, min_overlap)
 
-    model_path = max(MODELS_DIR.glob("onedcnn*.pth"), key=lambda x: x.stat().st_ctime)
-    labels = [cnn_classifier(model_path, section) for section in sections]
-    logger.debug(f"labels: {labels}")
+        model_path = MODELS_DIR / "onedcnn_model_carioca_83.pth"
+        labels = [cnn_classifier(model_path, section) for section in sections]
+        prediction = any(labels)
+    elif classifier == "cnn-bilstm":
+        model_path = MODELS_DIR / "cnn_bilstm_alldata_model.pth"
+        spatial_scaler_path = MODELS_DIR / "cnn_bilstm_alldata_spatial_scaler.pkl"
+        temporal_scaler_path = MODELS_DIR / "cnn_bilstm_alldata_temporal_scaler.pkl"
+        prediction = bilstm_classifier(
+            feature_freq_vector, config, model_path, spatial_scaler_path, temporal_scaler_path
+        )
 
     # Output
-    if any(labels):
-        result = "Tampered"
-        style = "bold red"
+    if prediction:
+        print(Panel(Text(text="Tampered", style="bold red"), expand=False))
     else:
-        result = "Authentic"
-        style = "bold green"
-    print(Panel(Text(text=result, style=style), expand=False))
+        print(Panel(Text(text="Authentic", style="bold green"), expand=False))
 
     if config["create_report"]:
         report(config, labels)
@@ -121,6 +97,31 @@ def configfile():
 @app.command()
 def synthexample():
     raise NotImplementedError("Not implemented yet.")
+
+
+def select_config(default, config_file, _locals):
+    # TODO: Refactor to a function
+    # prio 3
+    config = default.copy()
+    # prio 2
+    if config_file is not None:
+        try:
+            with open(config_file, "r") as f:
+                update = yaml.safe_load(f)
+                config.update(update)
+        except Exception as e:
+            logger.warning(
+                f"Could not load config file: {e}, using CLI Parameter and defaults only."
+            )
+    # prio 1
+    kwargs = {
+        k: _locals[k]
+        for k in inspect.signature(detect).parameters.keys()
+        if _locals[k] != DEFAULT.get(k)
+    }
+    config.update(kwargs)
+
+    return config
 
 
 if __name__ == "__main__":

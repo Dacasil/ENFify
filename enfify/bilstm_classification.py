@@ -7,6 +7,8 @@ from sklearn.metrics import confusion_matrix
 from torch import nn
 from tqdm import tqdm
 
+from enfify.preprocessing import extract_spatial_features, extract_temporal_features
+
 # TODO: resolve warning
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.base")
 
@@ -189,9 +191,12 @@ def apply_normalization(features, scaler):
     return features
 
 
-def bilstm_classifier(
-    model_path, spatial_scaler_path, temporal_scaler_path, spatial_features, temporal_features
-):
+def bilstm_classifier(feature_freq, config, model_path, spatial_scaler_path, temporal_scaler_path):
+    spatial_features = extract_spatial_features(feature_freq, config["bilstm_sn"])
+    temporal_features = extract_temporal_features(
+        feature_freq, config["bilstm_fl"], config["bilstm_fn"]
+    )
+
     # Add dimension
     spatial_features = spatial_features[None, ...]
     temporal_features = temporal_features[None, ...]
@@ -228,6 +233,7 @@ def bilstm_classifier(
 
 if __name__ == "__main__":
     import numpy as np
+    from enfify.visualization import plot_feature_freq
 
     model_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_model.pth"
     spatial_scaler_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_spatial_scaler.pkl"
@@ -243,13 +249,15 @@ if __name__ == "__main__":
         "/home/cloud/enfify/data/test_bilstm/WHU_ref/whu_ref_labels_freqs.npy", allow_pickle=True
     ).astype(int)
 
+    plot_feature_freq(temporal_features[0])
+
     predictions = []
-    for spatial, temporal, label in zip(spatial_features, temporal_features, tqdm(labels)):
+    for spatial, temporal, label in zip(spatial_features, temporal_features, labels[:1]):
         prediction = bilstm_classifier(
             model_path, spatial_scaler_path, temporal_scaler_path, spatial, temporal
         )
-        # print(f"{label}-{prediction}")
+        print(f"{label}-{prediction}")
         predictions.append(prediction)
 
-    cm = confusion_matrix(labels, predictions)
-    print(cm)
+    # cm = confusion_matrix(labels, predictions)
+    # print(cm)
