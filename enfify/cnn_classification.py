@@ -65,7 +65,7 @@ def cnn_classifier(model_path, feature_vector):
     model.eval()  # Set model to evaluation mode
 
     # Convert feature vector to a torch tensor and add batch and channel dimensions
-    feature_vector = normalize_robust(feature_vector)
+    feature_vector = normalize_robust(feature_vector)  # TODO: rows and cols checken
     feature_vector = torch.tensor(feature_vector, dtype=torch.float32)
     feature_vector = feature_vector.unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, feature_length)
 

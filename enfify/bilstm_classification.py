@@ -1,9 +1,14 @@
+import pickle
+import warnings
+
 import torch
 import torch.nn.functional as F
+from sklearn.metrics import confusion_matrix
 from torch import nn
+from tqdm import tqdm
 
-from enfify.utils import normalize_robust
-
+# TODO: resolve warning
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.base")
 
 SPATIAL_INPUT_SIZE = 46  # Height and width for CNN input
 TEMPORAL_INPUT_SIZE = 25  # Input size for LSTM
@@ -176,15 +181,34 @@ class ParallelCNNBiLSTM(nn.Module):
         return output
 
 
-def bilstm_classifier(model_path, spatial_features, temporal_features):
-    spatial_features = normalize_robust(spatial_features)
-    temporal_features = normalize_robust(temporal_features)
+def apply_normalization(features, scaler):
+    init_shape = features.shape
+    features = features.reshape(init_shape[0], -1)
+    features = scaler.transform(features)
+    features = features.reshape(init_shape)
+    return features
+
+
+def bilstm_classifier(
+    model_path, spatial_scaler_path, temporal_scaler_path, spatial_features, temporal_features
+):
+    # Add dimension
+    spatial_features = spatial_features[None, ...]
+    temporal_features = temporal_features[None, ...]
+
+    # Normalize
+    with open(spatial_scaler_path, "rb") as f:
+        scaler_spatial = pickle.load(f)
+    spatial_features = apply_normalization(spatial_features, scaler_spatial)
+    with open(temporal_scaler_path, "rb") as f:
+        scaler_temporal = pickle.load(f)
+    temporal_features = apply_normalization(temporal_features, scaler_temporal)
 
     spatial_features = torch.tensor(spatial_features, dtype=torch.float32)
     temporal_features = torch.tensor(temporal_features, dtype=torch.float32)
 
     spatial_features = spatial_features.unsqueeze(0)
-    temporal_features = temporal_features
+    # temporal_features = temporal_features
 
     model = ParallelCNNBiLSTM(
         temporal_input_size=TEMPORAL_INPUT_SIZE, spatial_input_size=SPATIAL_INPUT_SIZE
@@ -205,20 +229,27 @@ def bilstm_classifier(model_path, spatial_features, temporal_features):
 if __name__ == "__main__":
     import numpy as np
 
-    model_path = "/home/cloud/enfify/models/bilstm_model_mixed.pth"
+    model_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_model.pth"
+    spatial_scaler_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_spatial_scaler.pkl"
+    temporal_scaler_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_temporal_scaler.pkl"
 
-    ind = -4
     spatial_features = np.load(
         "/home/cloud/enfify/data/test_bilstm/WHU_ref/whu_ref_spatial_freqs.npy", allow_pickle=True
-    )[ind]
+    )
     temporal_features = np.load(
         "/home/cloud/enfify/data/test_bilstm/WHU_ref/whu_ref_temporal_freqs.npy", allow_pickle=True
-    )[ind]
-    label = np.load(
+    )
+    labels = np.load(
         "/home/cloud/enfify/data/test_bilstm/WHU_ref/whu_ref_labels_freqs.npy", allow_pickle=True
-    )[ind].astype(int)
+    ).astype(int)
 
-    spatial_features = spatial_features[np.newaxis, ...]
-    temporal_features = temporal_features[np.newaxis, ...]
-    print(f"label:      {label}")
-    print(f"prediction: {bilstm_classifier(model_path, spatial_features, temporal_features)}")
+    predictions = []
+    for spatial, temporal, label in zip(spatial_features, temporal_features, tqdm(labels)):
+        prediction = bilstm_classifier(
+            model_path, spatial_scaler_path, temporal_scaler_path, spatial, temporal
+        )
+        # print(f"{label}-{prediction}")
+        predictions.append(prediction)
+
+    cm = confusion_matrix(labels, predictions)
+    print(cm)

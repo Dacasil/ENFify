@@ -8,7 +8,7 @@ lab*
 *.png
 
 *scratch*
-*temp*
+*temp_*
 *hidden*
 *Data*
 ./data
