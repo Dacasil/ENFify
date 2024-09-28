@@ -1,0 +1,41 @@
+name: enfify
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.10
+  - black
+  - flake8
+  - isort
+  - pip
+  - typer
+  - loguru
+  - tqdm
+  - ipython
+  - jupyterlab
+  - matplotlib
+  - notebook
+  - numpy
+  - pandas
+  - scikit-learn
+  - ffmpeg
+  - librosa
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cpuonly
+  # - cudatoolkit=11.8
+  - ipywidgets
+  - ipykernel
+  - pip:
+    - python-dotenv
+    - mkdocs
+    - -e .
+    - soundfile
+    - pydub
+    - selenium
+    - fpdf
+    - numba
+    - ffmpeg-python
+    - libfmp
+    - torchsummary

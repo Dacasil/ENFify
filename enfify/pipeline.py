@@ -1,117 +1,53 @@
-"""Module that combines steps of the workflow."""
-
 import numpy as np
-from loguru import logger
-from scipy.signal import get_window
 
-from enfify.enf_enhancement import RFA, VMD
-from enfify.enf_estimation import freq_estimation_DFT1, segmented_freq_estimation_DFT1
-from enfify.preprocessing import bandpass_filter, downsample_ffmpeg, downsample_scipy
-
-
-def frame_split(sig, window_type, frame_len, frame_shift):
-    """Split the signal into frames."""
-    num_frames = (len(sig) - frame_len + frame_shift) // frame_shift
-    frames = np.zeros((num_frames, frame_len))
-
-    window = get_window(window_type, frame_len)
-    for i in range(num_frames):
-        start = i * frame_shift
-        end = start + frame_len
-        frames[i] = sig[start:end] * window
-
-    return frames
+from enfify.feature_calculation import framing, freq_estimation_DFT1
+from enfify.preprocessing import (
+    butterworth_bandpass_filter,
+    downsample_ffmpeg,
+    fir_bandpass_filter,
+)
 
 
-def freq_feature_pipeline(sig, sample_freq, config):
+def feature_freq_pipeline(sig, sample_freq, config):
     # Downsampling
-    nominal_enf = config["nominal_enf"]
-    downsample_freq = config["downsampling_frequency_per_nominal_enf"] * nominal_enf
+    downsample_freq = config["downsample_per_enf"] * config["nominal_enf"]
     sig, sample_freq = downsample_ffmpeg(sig, sample_freq, downsample_freq)
 
     # Bandpass Filter
-    bandpass_config = config["bandpass_filter"]
-    lowcut = bandpass_config["lowcut"]
-    highcut = bandpass_config["highcut"]
-    order = bandpass_config["order"]
-    sig = bandpass_filter(sig, lowcut, highcut, sample_freq, order)
+    lowcut = config["nominal_enf"] - config["bandpass_delta"]
+    highcut = config["nominal_enf"] + config["bandpass_delta"]
+    bandpass_order = config["bandpass_order"]
+    sig = butterworth_bandpass_filter(sig, sample_freq, lowcut, highcut, bandpass_order)
 
-    # Frame Splitting and Windowing
+    # Frame Splitting
     window_type = config["window_type"]
-    frame_len_samples = int(config["frame_len"] / 1000 * sample_freq)
-    frame_shift = int(frame_len_samples * (1 - config["frame_overlap"]))
+    frame_len = config["frame_len"]
+    frame_shift = config["frame_step"]
+    frames = framing(sig, sample_freq, frame_len, frame_shift, window_type)
 
-    num_frames = (len(sig) - frame_len_samples + frame_shift) // frame_shift
-    frames = np.zeros((num_frames, frame_len_samples))
-
-    window = get_window(window_type, frame_len_samples)
-    for i in range(num_frames):
-        start = i * frame_shift
-        end = start + frame_len_samples
-        frames[i] = sig[start:end] * window
-
-    logger.info(f"Number of frames: {num_frames}")
-    logger.info(f"Frame length: {frame_len_samples} samples")
-
-    # Estimate the instantaneous frequency
-    freq_estimation_config = config["freq_estimation"]
-    n_dft = freq_estimation_config["n_dft"]
-
-    feature_freqs = np.array([freq_estimation_DFT1(frame, sample_freq, n_dft) for frame in frames])
-
-    return feature_freqs
-
-
-def freq_ls_feature_pipeline(sig, sample_freq, config):
-
-    # Nominal ENF
-    nom_enf = config["nominal_enf"]
-
-    # Downsampling
-    downsample_freq = config["downsampling_frequency_per_nominal_enf"] * config["nominal_enf"]
-
-    if config["downsample_enabled"]:
-        sig, sample_freq = downsample_scipy(sig, sample_freq, downsample_freq)
-
-    # Bandpass Filter
-    bandpass_config = config["bandpass_filter"]
-    if bandpass_config["is_enabled"]:
-        lowcut = bandpass_config["lowcut"]
-        highcut = bandpass_config["highcut"]
-        order = bandpass_config["order"]
-        sig = bandpass_filter(sig, lowcut, highcut, sample_freq, order)
-
-    # Variational Mode Decomposition
-    VMD_config = config["VMD"]
-    if VMD_config["is_enabled"]:
-        loop = VMD_config["loop"]
-        alpha = VMD_config["alpha"]
-        tau = VMD_config["tau"]
-        n_mode = VMD_config["n_mode"]
-        DC = VMD_config["DC"]
-        tol = VMD_config["tol"]
-
-        for i in range(loop):
-            u_clean, _, _ = VMD(sig, alpha, tau, n_mode, DC, tol)
-            sig = u_clean[0]
-
-    # Robust Filtering Algorithm
-    RFA_config = config["RFA"]
-    if RFA_config["is_enabled"]:
-        f0 = RFA_config["f0"]
-        i = RFA_config["I"]
-        tau = RFA_config["tau"]
-        epsilon = RFA_config["epsilon"]
-
-        sig = RFA(sig, downsample_freq, tau, epsilon, i, f0)
-
-    # Estimate the instantaneous frequency
-    freq_estimation_config = config["freq_estimation"]
-    n_dft = freq_estimation_config["n_dft"]
-    num_cycles = freq_estimation_config["num_cycles"]
-
-    feature_freqs = segmented_freq_estimation_DFT1(
-        sig, downsample_freq, num_cycles, n_dft, nom_enf
+    # Frequency Estimation
+    n_dft = config["n_dft"]
+    window_type = config["window_type"]
+    feature_freq = np.array(
+        [freq_estimation_DFT1(frame, sample_freq, n_dft, window_type) for frame in frames]
     )
 
-    return feature_freqs
+    return feature_freq
+
+
+if __name__ == "__main__":
+    from pathlib import Path
+
+    import yaml
+    from scipy.io import wavfile
+
+    from enfify.visualization import plot_feature_freq
+
+    path = Path("/home/cloud/enfify/data/interim/Carioca1/HC01-00-tamp.wav")
+    sample_freq, sig = wavfile.read(path)
+    with open("/home/cloud/enfify/config/default.yml", "r") as f:
+        config = yaml.safe_load(f)
+    with open("/home/cloud/enfify/config/config_carioca.yml", "r") as f:
+        config.update(yaml.safe_load(f))
+    feature_freq = feature_freq_pipeline(sig, sample_freq, config)
+    plot_feature_freq(feature_freq, path.name)

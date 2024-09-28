@@ -1,0 +1,4 @@
+# #### PREPROCESSING CONFIGURATION ####
+# General
+nominal_enf: 60.0  # Hz
+bandpass_order: 1

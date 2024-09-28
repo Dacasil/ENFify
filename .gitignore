@@ -1,4 +1,6 @@
 # OUR GITIGNORE LINES
+kernel-metadata.json
+
 lab*
 *.pdf
 *.mp3

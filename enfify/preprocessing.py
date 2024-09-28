@@ -1,362 +1,120 @@
-"""Module for preprocessing the ENF signal."""
-
 import os
-import re
 import tempfile
 
 import ffmpeg
-import matplotlib.pyplot as plt
 import numpy as np
-import scipy.signal as signal
-from loguru import logger
+from scipy import signal
 from scipy.io import wavfile
-from scipy.signal import butter, decimate, lfilter, resample
-
-# from enfify.utils import read_wavfile
-
-# .................Downsampling and bandpass filter.................#
 
 
-def downsample_scipy(sig, sample_rate, downsample_rate):
-    """Downsample a numpy array using scipy, with antialiasing.
+def downsample_ffmpeg(sig, sampling_rate, downsampling_rate):
+    """
+    Downsamples an audio signal using FFmpeg
 
     Args:
-        sig (numpy.ndarray): Raw signal.
-        sample_rate (int or float): Current sampling frequency.
-        downsample_rate (int or float): Target sampling frequency.
+        sig (numpy.ndarray): Audio signal
+        sampling_rate (float): The current sampling rate of the input signal
+        downsampling_rate (float): The desired downsampling rate
 
     Returns:
-        numpy.ndarray: Downsampled signal.
-        float: New sampling frequency.
+        numpy.ndarray: Downsampled audio signal
+        float: Downsampling frequency
+
     """
-
-    if downsample_rate <= 0:
-        raise ValueError("Target sampling rate must be greater than 0.")
-
-    if downsample_rate >= sample_rate:
-        logger.warning(
-            "Not downsampling since the target sampling rate is greater than the current sampling rate."
-        )
-        return sig, sample_rate
-
-    if sample_rate % downsample_rate == 0:
-        # If the target sampling rate is an integer multiple of the original rate
-        decimation_factor = int(sample_rate // downsample_rate)
-        return decimate(sig, decimation_factor), downsample_rate  # Antialiasing is integrated here
-    else:
-        # Otherwise, use resampling
-        # Log a warning about the need for an antialiasing filter
-        logger.warning(
-            f"The target sampling rate ({downsample_rate}) is not an integer multiple of the current sampling rate ({sample_rate}). Resampling is used, which does not have an integrated antialiasing filter. Applying a lowpass filter."
-        )
-
-        # Apply a lowpass filter to ensure antialiasing
-        cutoff_frequency = downsample_rate / 2.0
-        filtered_sig = lowpass_filter(sig, cutoff_frequency, sample_rate)
-        num_samples = int(len(filtered_sig) * downsample_rate / sample_rate)
-        return resample(filtered_sig, num_samples), downsample_rate
-
-
-def lowpass_filter(signal, cutoff, fs, order=5):
-    """Apply a Butterworth lowpass filter for antialiasing.
-
-    Args:
-        signal (numpy.ndarray): Input signal.
-        cutoff (float): Cutoff frequency of the filter (in Hz).
-        fs (float): Sampling frequency of the signal (in Hz).
-        order (int): Order of the filter.
-
-    Returns:
-        numpy.ndarray: Filtered signal.
-    """
-    nyquist = 0.5 * fs
-    normal_cutoff = cutoff / nyquist
-    b, a = butter(order, normal_cutoff, btype="low", analog=False)
-    return lfilter(b, a, signal)
-
-
-def downsample_ffmpeg(sig, sample_rate, downsample_rate):
     with (
         tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as input_file,
         tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as output_file,
     ):
         input_path = input_file.name
         output_path = output_file.name
-        wavfile.write(input_path, sample_rate, sig)
+        wavfile.write(input_path, sampling_rate, sig)
 
         ffmpeg.input(input_path).output(
-            output_path, ar=downsample_rate
+            output_path, ar=downsampling_rate
         ).overwrite_output().global_args("-loglevel", "error").run()
 
-        downsample_rate, downsampled_sig = wavfile.read(output_path)
+        downsampling_rate, downsampled_sig = wavfile.read(output_path)
 
         os.remove(input_path)
         os.remove(output_path)
 
-    return downsampled_sig, downsample_rate
+    return downsampled_sig, downsampling_rate
 
 
-def bandpass_filter(sig, lowcut, highcut, fs, order):
-    """Bandpass Filter to cut out unwanted frequencys of a signal
+# The prefered bandpassfilter
+def fir_bandpass_filter(sig, sampling_rate, lowcut, highcut, order):
+    """
+    Applies a zero-phase FIR bandpass filter to the input signal.
 
     Args:
-        sig (numpy array_):Signal to filter
-        lowcut (int or float): Lower limit of the wanted frequency
-        highcut (int or float): Upper limit of the wanted frequency
-        fs (int or float): Sampling frequency
-        order (int or float): Precision order of the bandpass filter
+        sig (numpy.ndarray): Audio signal
+        sampling_rate (float): Sampling frequency
+        lowcut (float): Lower limit of the wanted frequency (Hz)
+        highcut (float): Upper limit of the wanted frequency (Hz)
+        order (int): Order (number of taps) of the FIR filter
 
     Returns:
-        Numpy Array: BAndpassed signal
+        numpy.ndarray: Filtered audio signal
     """
 
-    nyq = 0.5 * fs
+    # Normalize the frequencies to [0, 1] (Nyquist is 1)
+    w1 = lowcut * 2 * np.pi / sampling_rate
+    w2 = highcut * 2 * np.pi / sampling_rate
+    Wn = [w1 / np.pi, w2 / np.pi]
+
+    h = signal.firwin(order, Wn, pass_zero="bandpass")  # FIR Filter Design
+    sig_len = len(sig)  # Length of the signal
+
+    # Filter the signal with zero-padding for shorter signals
+    if sig_len <= 3 * order:
+        pad_length = (
+            int(1.5 * order - sig_len // 2) + 50
+        )  # Pad the signal with zeros to avoid edge effects
+        padded_signal = np.concatenate((np.zeros(pad_length), sig, np.zeros(pad_length)))
+
+        # Apply the zero-phase filtering
+        filtered_signal = signal.filtfilt(
+            h, 1, padded_signal, axis=0, padtype="odd", padlen=3 * (max(len(h), 1) - 1)
+        )
+
+        # Remove the padding
+        sig = sig[pad_length : pad_length + sig_len]
+        filtered_signal = filtered_signal[pad_length : pad_length + sig_len]
+
+    # For longer signals, a fixed padding of 1000 samples is used
+    else:
+        padded_signal = np.concatenate((np.zeros(1000), sig, np.zeros(1000)))
+
+        # Apply the zero-phase filtering
+        filtered_signal = signal.filtfilt(
+            h, 1, padded_signal, padtype="odd", padlen=3 * (max(len(h), 1) - 1)
+        )
+
+        # Remove the padding
+        sig = sig[1000 : 1000 + sig_len]
+        filtered_signal = filtered_signal[1000 : 1000 + sig_len]
+
+    return filtered_signal
+
+
+def butterworth_bandpass_filter(sig, sampling_rate, lowcut, highcut, order):
+    """Bandpass Filter to cut out unwanted frequencys of a signal using Butterworth
+
+    Args:
+        sig (numpy.array):Audio Signal
+        lowcut (float): Lower limit of the wanted frequency (Hz)
+        highcut (float): Upper limit of the wanted frequency (Hz)
+        sampling_rate (loat): Sampling frequency
+        order (int): Order of the bandpass filter
+
+    Returns:
+        numpy.ndarray: Bandpassed signal
+    """
+
+    nyq = 0.5 * sampling_rate
     low = lowcut / nyq
     high = highcut / nyq
     sos = signal.butter(order, [low, high], btype="band", output="sos")
     bandpass_sig = signal.sosfiltfilt(sos, sig)
 
     return bandpass_sig
-
-
-def butter_bandpass_test(lowcut, highcut, fs, order=5):
-    """Test the butter bandpass filter
-
-    Args:
-        lowcut (int or float): Lower limit of the wanted frequency
-        highcut (int or float): Upper limit of the wanted frequency
-        fs (int or float): Sampling frequency
-        order (int or float): Precision order of the bandpass filter
-
-    Returns:
-        Numpy Array: Bandpass Filter
-    """
-
-    nyq = 0.5 * fs
-    low = lowcut / nyq
-    high = highcut / nyq
-    sos = signal.butter(order, [low, high], btype="band", output="sos")
-    w, h = signal.sosfreqz(sos, worN=20000)
-    plt.semilogx((fs * 0.5 / np.pi) * w, abs(h))
-    return sos
-
-
-# .................Extract and generate File names..................#
-
-
-def extract_number(file_name):
-    """Extract number of Audio file anames to sort them
-
-    Args:
-        filenames (string)
-
-    Returns:
-        _type_: Paths + Names of cut and uncut audio files
-    """
-
-    match = re.match(r"(\d+)_audio\.wav", file_name)
-    return int(match.group(1)) if match else float("inf")
-
-
-def cut_extract_number(file_name):
-    """Extract number of Audio file anames to sort them
-
-    Args:
-        filenames (string)
-
-    Returns:
-        _type_: Paths + Names of cut and uncut audio files
-    """
-
-    match = re.match(r"(\d+)_cut_audio\.wav", file_name)
-    return int(match.group(1)) if match else float("inf")
-
-
-def list_files_in_directory(input_dir, output_dir):
-    """File names and directory paths for donwsampling audio files with ffmpeg
-
-    Args:
-        input_dir (string): directory names where the audio files are stored
-        output_dir (string): directory names where the new downsampled audio files should be stored
-
-    Returns:
-        _type_: Paths + Names of downsampled and original audio files
-    """
-    # List all files in the directory
-    files = os.listdir(input_dir)
-    # Filter out directories, only keep files
-    raw_files = [f for f in files if os.path.isfile(os.path.join(input_dir, f))]
-    down_files = []
-    files = []
-
-    for raw in raw_files:
-        down_file = output_dir + "/down_" + raw
-        down_files.append(down_file)
-
-    for raw in raw_files:
-        files.append(input_dir + "/" + raw)
-
-    return files, down_files
-
-
-def ffmpeg_filenames_cut(input_dir, output_dir):
-    """File names and directory paths for cut and uncut samples with ffmpeg
-
-    Args:
-        input_dir (str): Directory of the input audio signals
-        output_dir (str): Directory where to save the the cut audio signals
-
-    Returns:
-        _type_: Paths + Names of cut and uncut audio files
-    """
-
-    try:
-        # List all files in the directory
-        files = os.listdir(input_dir)
-        files.sort(key=extract_number)
-        # Filter out directories, only keep files
-        raw_files = [f for f in files if os.path.isfile(os.path.join(input_dir, f))]
-        cut_files = []
-        files = []
-
-        for raw in raw_files:
-            cut_file = output_dir + "/cut_" + raw
-            cut_files.append(cut_file)
-
-        for raw in raw_files:
-            files.append(input_dir + "/" + raw)
-
-        return files, cut_files
-
-    except FileNotFoundError:
-        return f"The directory {input_dir} does not exist."
-    except PermissionError:
-        return f"Permission denied to access {input_dir}."
-
-
-# .................Cut signal..................#
-
-
-def cut_tones(sig, F_DS):
-    """Random cuts numpy arrays
-
-    Args:
-        sig (nparray): numpy array signal
-        F_DS (int or float): Sampling frequency of the signal
-
-    Returns:
-        _type_: Cut numpy array
-    """
-
-    m = len(sig)
-    CUT_SAMPLES_LIMIT = 1 * F_DS
-
-    cut_len = np.random.randint(0, CUT_SAMPLES_LIMIT)
-    i_cut_start = np.random.randint(cut_len, m - cut_len)
-    i_cut_end = i_cut_start + cut_len
-    cut_sig = np.concatenate((sig[:i_cut_start], sig[i_cut_end:]))
-
-    return cut_sig, i_cut_start, cut_len
-
-
-def cut_signal(sig, F_DS, cut_start, cut_len):
-    """Cuts numpy arrays
-
-    Args:
-        sig (nparray): numpy array signal
-        F_DS (int or float): Sampling frequency of the signal
-
-    Returns:
-        _type_: Cut numpy array
-    """
-    cut_end = cut_start + cut_len
-    cut_sig = np.concatenate((sig[:cut_start], sig[cut_end:]))
-
-    return cut_sig
-
-
-def cut_out_signal(sig, F_DS, cut_start, cut_len):
-    """Cuts out numpy arrays
-
-    Args:
-        sig (nparray): numpy array signal
-        F_DS (int or float): Sampling frequency of the signal
-
-    Returns:
-        _type_: Cut numpy array
-    """
-
-    cut_end = cut_start + cut_len
-    cut_sig = sig[cut_start : cut_end + 1]
-
-    return cut_sig
-
-
-def cut_audio(input_file, output_file, cut_begin, cut_len):
-    """
-    Single cut in audio files with ffmpeg (.wav or .mp3 files)
-
-    Args:
-        input_file (string): Audio to cut
-        output_file (string): where to save the cut audio
-        cut_begin (int or float): begin of the cut
-        cut_len (int or float): len of the cut out audio part
-
-    Returns:
-        _type_: Returns nothing, cut audio file gets saved in output_file path
-    """
-
-    # Ensure paths with spaces are quoted
-    input_file_quoted = input_file.replace(" ", r"\ ")
-    output_file_quoted = output_file.replace(" ", r"\ ")
-
-    # Command to execute
-    command = (
-        f". /home/$USER/miniforge3/etc/profile.d/conda.sh; "
-        f"conda activate enfify; "
-        f"ffmpeg -i {input_file_quoted} -filter_complex "
-        f'"[0]atrim=end={cut_begin},asetpts=PTS-STARTPTS[a1]; '
-        f"[0]atrim=start={cut_len},asetpts=PTS-STARTPTS[a2]; "
-        f'[a1][a2]concat=n=2:v=0:a=1[out]" '
-        f'-map "[out]" {output_file_quoted}'
-    )
-
-    # Execute the command
-    os.system(command)
-
-
-def mult_cut_audio(
-    input_file, output_file, cut_begin_1, cut_end_1, cut_begin_2, cut_end_2, cut_begin_3, cut_end_3
-):
-    """
-    Three Cuts in audio files with ffmpeg (.wav or .mp3 files)
-
-    Args:
-        input_file (string): Audio to cut
-        output_file (string): where to save the cut audio
-        cut_begin_1-3 (int or float): begin of the cuts
-        cut_end_1-3 (int or float): end of the cuts
-
-    Returns:
-        _type_: Returns nothing, cut audio file gets saved in output_file path
-    """
-
-    # Ensure paths with spaces are quoted
-    input_file_quoted = input_file.replace(" ", r"\ ")
-    output_file_quoted = output_file.replace(" ", r"\ ")
-
-    # Command to execute
-    command = (
-        f". /home/$USER/miniforge3/etc/profile.d/conda.sh; "
-        f"conda activate enfify; "
-        f"ffmpeg -i {input_file_quoted} -filter_complex "
-        f'"[0]atrim=end={cut_begin_1},asetpts=PTS-STARTPTS[a1]; '
-        f"[0]atrim=start={cut_end_1}:end={cut_begin_2},asetpts=PTS-STARTPTS[a2]; "
-        f"[0]atrim=start={cut_end_2}:end={cut_begin_3},asetpts=PTS-STARTPTS[a3]; "
-        f"[0]atrim=start={cut_end_3},asetpts=PTS-STARTPTS[a4]; "
-        f'[a1][a2][a3][a4]concat=n=4:v=0:a=1[out]" '
-        f'-map "[out]" {output_file_quoted}'
-    )
-
-    # Execute the command
-    os.system(command)
