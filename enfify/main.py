@@ -20,7 +20,6 @@ from enfify import (
     feature_freq_pipeline,
     report,
     sectioning,
-    plot_feature_freq,
 )
 
 logger.remove()

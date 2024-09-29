@@ -8,44 +8,45 @@ from enfify.preprocessing import (
 )
 
 
-def feature_freq_bilstm_pipeline(sig, sample_freq, config):
-    """
-    Processes an audio signal to extract frequency features for a CNN BiLSTM pipeline.
+# TODO: Remove when not needed
+# def feature_freq_bilstm_pipeline(sig, sample_freq, config):
+#     """
+#     Processes an audio signal to extract frequency features for a CNN BiLSTM pipeline.
 
-    Args:
-        sig (numpy.ndarray): The input audio signal
-        sample_freq (float): The sampling frequency of the input signal
-        config (dict): Configuration dictionary containing parameters for processing
+#     Args:
+#         sig (numpy.ndarray): The input audio signal
+#         sample_freq (float): The sampling frequency of the input signal
+#         config (dict): Configuration dictionary containing parameters for processing
 
-    Returns:
-        tuple: A tuple containing:
-            - numpy.ndarray: The extracted spatial features.
-            - numpy.ndarray: The extracted temporal features.
+#     Returns:
+#         tuple: A tuple containing:
+#             - numpy.ndarray: The extracted spatial features.
+#             - numpy.ndarray: The extracted temporal features.
 
-    Process:
-        - Downsamples the signal if enabled.
-        - Applies a bandpass filter if spenabled.
-        - Performs Variational Mode Decomposition (VMD) if enabled.
-        - Applies a Robust Filtering Algorithm (RFA) if enabled.
-        - Estimates the instantaneous frequencies using STFT.
-        - Trims the boundary values from the frequency estimates.
-        - Extracts spatial and temporal features for CNN BiLSTM processing.
-    """
+#     Process:
+#         - Downsamples the signal if enabled.
+#         - Applies a bandpass filter if spenabled.
+#         - Performs Variational Mode Decomposition (VMD) if enabled.
+#         - Applies a Robust Filtering Algorithm (RFA) if enabled.
+#         - Estimates the instantaneous frequencies using STFT.
+#         - Trims the boundary values from the frequency estimates.
+#         - Extracts spatial and temporal features for CNN BiLSTM processing.
+#     """
 
-    feature_freq = feature_freq_pipeline(sig, sample_freq, config)
+#     feature_freq = feature_freq_pipeline(sig, sample_freq, config)
 
-    # Cut the boundary to weaken boundary value problems
-    feature_freq = feature_freq[40:-40]
+#     # Cut the boundary to weaken boundary value problems
+#     feature_freq = feature_freq[40:-40]
 
-    # CNN BiLSTM feature processing
-    sn = config["bilstm_sn"]
-    fl = config["bilstm_fl"]
-    fn = config["bilstm_fn"]
+#     # CNN BiLSTM feature processing
+#     sn = config["bilstm_sn"]
+#     fl = config["bilstm_fl"]
+#     fn = config["bilstm_fn"]
 
-    spatial_features = extract_spatial_features(feature_freq, sn)
-    temporal_features = extract_temporal_features(feature_freq, fl, fn)
+#     spatial_features = extract_spatial_features(feature_freq, sn)
+#     temporal_features = extract_temporal_features(feature_freq, fl, fn)
 
-    return spatial_features, temporal_features
+#     return spatial_features, temporal_features
 
 
 def feature_freq_pipeline(sig, sample_freq, config):

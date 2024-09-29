@@ -21,7 +21,7 @@ ffmpeg-python = "^0.2.0"
 pyyaml = "^6.0.2"
 requests = "^2.32.3"
 torch = {version = "^2.4.1+cpu", source = "pytorch-cpu"}
-scikit-learn = "^1.5.2"
+scikit-learn = "1.5.2"
 
 
 [tool.poetry.group.dev.dependencies]

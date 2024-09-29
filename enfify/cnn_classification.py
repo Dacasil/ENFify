@@ -2,49 +2,10 @@ from math import ceil
 
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from sklearn.preprocessing import robust_scale
 
 from enfify.config import DATA_DIR
-
-
-class OneDCNN(nn.Module):
-    def __init__(self):
-        super(OneDCNN, self).__init__()
-
-        # Convolutional Layer
-        self.conv1 = nn.Conv1d(in_channels=1, out_channels=75, kernel_size=130, stride=1)
-        # Max-Pooling Layer: Adjust kernel size to pool to (75, 1)
-        self.pool = nn.MaxPool1d(kernel_size=491 - 80 - 130 + 1)
-
-        # Dense Layer to go from (75) to (128)
-        self.fc1 = nn.Linear(75, 128)
-        # Output Layer to go from (128) to (10) or 2 for binary classification
-        self.fc2 = nn.Linear(128, 2)
-
-    def forward(self, x):
-        # Apply convolutional layer with ReLU activation
-        x = F.relu(self.conv1(x))
-
-        # Apply max pooling
-        x = self.pool(x)  # Shape after pooling: (batch_size, 75, 1)
-
-        # Transpose to get (batch_size, 1, 75)
-        x = x.squeeze(-1)  # Squeeze to remove the last dimension -> (batch_size, 75)
-        x = x.unsqueeze(1)  # Add a new dimension to get (batch_size, 1, 75)
-
-        # Apply fully connected layer to get (batch_size, 1, 128)
-        x = F.relu(self.fc1(x.squeeze(1)))  # Remove dimension for dense layer and apply ReLU
-        x = x.unsqueeze(1)  # Add back the dimension -> (batch_size, 1, 128)
-
-        # Apply final output layer to get (batch_size, 1, 2)
-        x = self.fc2(x.squeeze(1))  # Remove dimension, apply final dense layer
-
-        # Apply softmax to get class probabilities
-        x = F.softmax(x, dim=1)  # Softmax over the class dimension (dim=1)
-
-        return x
+from enfify.networks import OneDCNN
 
 
 def cnn_classifier(model_path, feature_vector):

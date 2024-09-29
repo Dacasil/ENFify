@@ -3,7 +3,7 @@
 
 # #### APPLICATION CONFIGURATION ####
 create_report: False  # If True, creates report files.
-classifier: 'cnn-bilstm'  # Classifier to use for classification (cnn|cnn-bilstm).
+classifier: 'cnn'  # Classifier to use for classification (cnn|cnn-bilstm).
 
 # #### CLASSIFICATION CNN ####
 feature_len: 411  # Length of feature vector section for model.
