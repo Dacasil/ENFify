@@ -1,6 +1,7 @@
 # OUR GITIGNORE LINES
 kernel-metadata.json
 enfify_example_files
+*-prev
 
 lab*
 *.pdf
