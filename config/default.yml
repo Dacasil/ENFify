@@ -1,11 +1,14 @@
 # #### APPLICATION CONFIGURATION ####
-log_level: 'INFO'  # Logging level for the application.
 create_report: False  # If True, creates report files.
-
+classifier: 'cnn'  # Classifier to use for classification (cnn|cnn-bilstm).
 
 # #### CLASSIFICATION CNN ####
 feature_len: 411  # Length of feature vector section for model.
 
+# #### CLASSIFICATION CNN-BILSTM ####
+bilstm_sn: 46          # number of phase points per unit frame, spatial features
+bilstm_fl: 85          # number of phase points per unit frame, temporal features
+bilstm_fn: 25          # number of frames, temporal features
 
 # #### PREPROCESSING CONFIGURATION ####
 # General
@@ -27,3 +30,6 @@ frame_step: 20  # milliseconds
 window_type: 'hann'  # Window type for windowing the frames.
 # Frequency Estimation
 n_dft: 20_000  # Number of DFT points for frequency estimation.
+
+# Trim
+feature_trim: 40  # samples # Remove this many unusable samples from the start and end of the feature.

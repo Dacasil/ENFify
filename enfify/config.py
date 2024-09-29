@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import yaml
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -33,3 +34,8 @@ try:
     logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
 except ModuleNotFoundError:
     pass
+
+
+# Default Config
+with open(CONFIG_DIR / "default.yml", "r") as f:
+    DEFAULT_CONFIG = yaml.safe_load(f)

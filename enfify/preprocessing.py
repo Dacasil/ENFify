@@ -1,5 +1,6 @@
 import os
 import tempfile
+from math import ceil, floor
 
 import ffmpeg
 import numpy as np
@@ -118,3 +119,77 @@ def butterworth_bandpass_filter(sig, sampling_rate, lowcut, highcut, order):
     bandpass_sig = signal.sosfiltfilt(sos, sig)
 
     return bandpass_sig
+
+
+def extract_spatial_features(psi_1_phases, sn):
+    """
+    Extracts spatial features from phase sequence features.
+
+    Args:
+        psi_1_list (numpy.ndarray[float]): A list of phase sequence features for multiple audio files
+
+    Returns:
+        list of numpy.ndarray: A list of spatial feature matrices for each audio file
+    """
+
+    ML = sn**2
+
+    current_len = len(psi_1_phases)
+
+    overlap = sn - ceil((ML - sn) / (current_len - sn))
+
+    # Split the frame
+    num_frames = (current_len - sn) // overlap + 1
+    frames = []
+
+    for i in range(0, num_frames * overlap, overlap):
+        if i + sn <= current_len:
+            frame = psi_1_phases[i : i + sn]
+            frames.append(frame)
+        else:
+            break
+
+    # Reshape into a spatial feature matrix (S Fsn×sn)
+    feature_matrix = np.zeros((sn, sn))
+
+    for i in range(min(sn, len(frames))):
+        feature_matrix[i, : len(frames[i])] = frames[i]
+
+    return feature_matrix
+
+
+def extract_temporal_features(psi_1_phases, fl, fn):
+    """
+    Extracts temporal features from phase sequence features.
+
+    Args:
+        psi_1_list (list of numpy.ndarray): A list of phase sequence features for multiple audio files
+        fl (int): The number of phase points contained in each frame (frame length)
+
+    Returns:
+        list of numpy.ndarray: A list of temporal feature matrices for each audio file
+    """
+
+    current_len = len(psi_1_phases)
+
+    overlap = fl - floor(current_len / fn)
+
+    # Split the phase sequence into frames using the calculated overlap
+    frames = []
+    for i in range(0, current_len - fl + 1, overlap):
+        frame = psi_1_phases[i : i + fl]
+        frames.append(frame)
+
+    # Cases where the last frame is smaller than `fl`
+    if len(psi_1_phases) % fl != 0:
+        frame = psi_1_phases[-fl:]
+        frames.append(frame)
+
+    # Reshape the frames into a temporal feature matrix T F fl × fn
+    feature_matrix = np.zeros((fl, fn))
+
+    # Matrix
+    for i in range(min(fn, len(frames))):
+        feature_matrix[:, i] = frames[i]
+
+    return feature_matrix
