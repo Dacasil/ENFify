@@ -1,5 +1,6 @@
 from math import ceil
 
+from loguru import logger
 import numpy as np
 import torch
 from sklearn.preprocessing import robust_scale
@@ -61,6 +62,7 @@ def sectioning(array, section_len, min_overlap):
         ceil(len(array) / (section_len - min_overlap)),
         dtype=int,
     )
+    logger.debug(f"Start: {start}")
     end = start + section_len
     return [array[s:e] for s, e in zip(start, end)]
 

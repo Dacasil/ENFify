@@ -19,10 +19,9 @@ from typing_extensions import Annotated
 from enfify import (
     CONFIG_DIR,
     MODELS_DIR,
-    cnn_classifier,
     bilstm_classifier,
+    cnn_classifier,
     feature_freq_pipeline,
-    plot_feature_freq,
     report,
     sectioning,
 )
@@ -38,7 +37,7 @@ app = typer.Typer()
 DEFAULT_CONFIG_FILE = CONFIG_DIR / "default.yml"
 with open(DEFAULT_CONFIG_FILE, "r") as f:
     DEFAULT = yaml.safe_load(f)
-EXAMPLE_OUTDIR = Path("enfify_example_files")
+EXAMPLE_OUTDIR = Path(".")
 
 
 # COMMANDS
@@ -66,11 +65,18 @@ def detect(
     print(f"[bold white]Analyzing audio file: [bold cyan]{audio_file}[/bold cyan][/bold white]")
     sample_freq, sig = wavfile.read(audio_file)
 
+    if len(sig) / sample_freq < 10:
+        logger.warning(
+            "The audio file is less than 10 seconds long but model trained with 10 second files. Padding with zeros might affect the result."
+        )
+        sig = np.pad(sig, (0, 10 * sample_freq - len(sig)))
+
     # Preprocessing
     feature_freq_vector = feature_freq_pipeline(sig, sample_freq, config)
 
     # Classification
     if classifier == "cnn":
+        logger.debug("Using CNN classifier")
         feature_len = config["feature_len"]
         feature_freq = 1000 / config["frame_step"]
         min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
@@ -78,8 +84,11 @@ def detect(
 
         model_path = MODELS_DIR / "onedcnn_model_carioca_83.pth"
         labels = [cnn_classifier(model_path, section) for section in sections]
+        logger.debug(f"Labels: {labels}")
+        logger.debug(f"num labels: {len(labels)}")
         prediction = any(labels)
     elif classifier == "cnn-bilstm":
+        logger.warning("Using CNN-BiLSTM classifier with unoptimized feature preprocessing.")
         model_path = MODELS_DIR / "cnn_bilstm_alldata_model.pth"
         spatial_scaler_path = MODELS_DIR / "cnn_bilstm_alldata_spatial_scaler.pkl"
         temporal_scaler_path = MODELS_DIR / "cnn_bilstm_alldata_temporal_scaler.pkl"
@@ -99,7 +108,7 @@ def detect(
 
 @app.command()
 def example_config():
-    """Creates an example config file in a folder of the current directory."""
+    """Creates an example config file in the current directory."""
     src = DEFAULT_CONFIG_FILE
     dst = EXAMPLE_OUTDIR / "example_config.yml"
     dst.parent.mkdir(exist_ok=True)
@@ -110,22 +119,17 @@ def example_config():
 
 @app.command()
 def example_synth():
-    """Creates example audio files of synthetic data in a folder of the current directory.
+    """Creates example audio files of synthetic data in the current directory.
     One authentic and one tampered."""
 
-    audio_length = 30  # seconds
+    audio_length = 10  # seconds
     max_cut_length = 2  # seconds
 
     # Pathing
     EXAMPLE_OUTDIR.mkdir(exist_ok=True)
 
-    i = 1
     auth_path = EXAMPLE_OUTDIR / "synthetic-auth.wav"
     tamp_path = EXAMPLE_OUTDIR / "synthetic-tamp.wav"
-    while auth_path.exists() or tamp_path.exists():
-        i += 1
-        auth_path = EXAMPLE_OUTDIR / f"synthetic{i}-auth.wav"
-        tamp_path = EXAMPLE_OUTDIR / f"synthetic{i}-tamp.wav"
 
     # Synthesis
     sample_freq = 44100
@@ -138,27 +142,27 @@ def example_synth():
     start_ind, cutlen_samples = create_auth_tamp_clip(
         raw_sig, sample_freq, audio_length, max_cut_length, auth_path, tamp_path
     )
+    logger.info(f"Saved authentic file: {auth_path.absolute()}")
+    logger.info(f"Saved tampered file: {tamp_path.absolute()}")
 
     cut_info_path = EXAMPLE_OUTDIR / "cut_info.yml"
     cut_info = {
         auth_path.name: {"start": start_ind / sample_freq, "cutlen": cutlen_samples / sample_freq}
     }
-    try:
-        with open(cut_info_path, "r") as f:
-            cut_info.update(yaml.safe_load(f))
-    except FileNotFoundError:
-        pass
     with open(cut_info_path, "w") as f:
         yaml.dump(cut_info, f)
     print(
-        f"[bold white]Created synthetic example audio files in folder: [bold cyan]{EXAMPLE_OUTDIR}[/bold cyan][/bold white]"
+        f"[bold white]Created synthetic example audio files in folder: [bold cyan]{EXAMPLE_OUTDIR.absolute()}[/bold cyan][/bold white]"
     )
 
 
 @app.command()
 def example_whu():
-    """Creates example audio files of WHU_ref data in a folder of the current directory.
+    """Creates example audio files of WHU_ref data in the current directory.
     One authentic and one tampered."""
+
+    audiolen = 10  # seconds
+    max_cutlen = 2  # seconds
 
     # URL of the permalink
     url = "https://github.com/ghua-ac/ENF-WHU-Dataset/raw/78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset/H1_ref/001_ref.wav"
@@ -166,38 +170,47 @@ def example_whu():
     # Pathing
     EXAMPLE_OUTDIR.mkdir(exist_ok=True)
     auth_path = EXAMPLE_OUTDIR / "whuref-auth.wav"
+    temp_dir = Path(tempfile.mkdtemp())
+    temp_path = temp_dir / "_.wav"
     tamp_path = EXAMPLE_OUTDIR / "whuref-tamp.wav"
 
     # Download the file
+    logger.info(f"Downloading the file from: {url}")
     response = requests.get(url)
 
     if response.status_code != 200:
         raise Exception(f"Failed to download the file: {response.status_code}")
 
-    with open(auth_path, "wb") as f:
+    with open(temp_path, "wb") as f:
         f.write(response.content)
 
-    sample_freq, sig = wavfile.read(auth_path)
+    logger.info("Saving the file ...")
+    sample_freq, sig = wavfile.read(temp_path)
+
+    # Trim the file
+    audiolen_samples = audiolen * sample_freq
+    max_cutlen_samples = max_cutlen * sample_freq
+
+    # Save the authentic file
+    wavfile.write(auth_path, sample_freq, sig[:audiolen_samples])
+    logger.info(f"Saved authentic file: {auth_path.absolute()}")
 
     # Tamper the file
-    cutlen_samples = np.random.randint(2) * sample_freq
-    start_ind = np.random.randint(0, len(sig) - cutlen_samples)
+    sig = sig[: audiolen_samples + max_cutlen_samples]
+    cutlen_samples = np.random.randint(max_cutlen_samples)
+    start_ind = np.random.randint(0, audiolen_samples - 2 * cutlen_samples)
     tamp_sig = np.delete(sig.copy(), slice(start_ind, start_ind + cutlen_samples))
     wavfile.write(tamp_path, sample_freq, tamp_sig)
+    logger.info(f"Saved tampered file: {tamp_path.absolute()}")
 
     cut_info_path = EXAMPLE_OUTDIR / "cut_info.yml"
     cut_info = {
         auth_path.name: {"start": start_ind / sample_freq, "cutlen": cutlen_samples / sample_freq}
     }
-    try:
-        with open(cut_info_path, "r") as f:
-            cut_info.update(yaml.safe_load(f))
-    except FileNotFoundError:
-        pass
     with open(cut_info_path, "w") as f:
         yaml.dump(cut_info, f)
     print(
-        f"[bold white]Created example audio files from WHU_ref dataset in folder: [bold cyan]{EXAMPLE_OUTDIR}[/bold cyan][/bold white]"
+        f"[bold white]Created example audio files from WHU_ref dataset in folder: [bold cyan]{EXAMPLE_OUTDIR.absolute()}[/bold cyan][/bold white]"
     )
 
 
