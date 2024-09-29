@@ -30,6 +30,7 @@ from enfify.example_files import create_auth_tamp_clip, func_ENF_synthesis_corru
 logger.remove()
 logger.add(sys.stderr, level="INFO")
 warnings.filterwarnings("ignore", category=wavfile.WavFileWarning)
+np.random.seed(0)
 
 app = typer.Typer()
 

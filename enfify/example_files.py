@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.io import wavfile
 
+np.random.seed(1)
+
 
 def func_ENF_synthesis_corrupted_harmonic(
     fundamental_f=50,

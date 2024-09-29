@@ -4,6 +4,7 @@ from enfify.feature_calculation import framing, freq_estimation_DFT1
 from enfify.preprocessing import (
     butterworth_bandpass_filter,
     downsample_ffmpeg,
+    downsample_scipy_new,
     fir_bandpass_filter,
 )
 
