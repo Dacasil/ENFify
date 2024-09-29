@@ -2,6 +2,7 @@
 kernel-metadata.json
 enfify_example_files
 *-prev
+unused_ccds
 
 lab*
 *.pdf
