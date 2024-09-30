@@ -13,8 +13,11 @@ def report(prediction, confidence, audio_file, times, feature_freq_vector, featu
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8.27, 11.69))
 
     # Plotting
-    ax1.plot(times, feature_freq_vector, label="Frequency", color="tab:blue")
-    ax2.plot(times, np.degrees(feature_phase_vector), label="Phase", color="tab:orange")
+    # TODO: Remove clipping with fixing VMD length
+    ax1.plot(times, feature_freq_vector[: len(times)], label="Frequency", color="tab:blue")
+    ax2.plot(
+        times, np.degrees(feature_phase_vector[: len(times)]), label="Phase", color="tab:orange"
+    )
     # if prediction:  # TODO
     #     discontinuities = find_cut_in_phases(feature_phase_vector, times)
     #     for i, (start, end) in enumerate(discontinuities.T):

@@ -1,4 +1,5 @@
 import numpy as np
+from loguru import logger
 
 from enfify.enf_enhancement import RFA_STFT, VMD
 from enfify.feature_calculation import framing, freq_estimation_DFT1
@@ -42,6 +43,9 @@ def feature_freq_pipeline(sig, sample_freq, config):
     # Variational Mode Decomposition
     VMD_config = config["VMD"]
     if VMD_config["is_enabled"]:
+        logger.warning(
+            "VMD is enabled. This is an experimental feature and needs careful individual tuning."
+        )
         loop = VMD_config["loop"]
         alpha = VMD_config["alpha"]
         tau = VMD_config["tau"]
@@ -56,6 +60,9 @@ def feature_freq_pipeline(sig, sample_freq, config):
     # Robust Filtering Algorithm
     RFA_config = config["RFA"]
     if RFA_config["is_enabled"]:
+        logger.warning(
+            "RFA is enabled. This is an experimental feature and needs careful individual tuning."
+        )
         f0 = RFA_config["f0"]
         i = RFA_config["I"]
         tau = RFA_config["tau"]

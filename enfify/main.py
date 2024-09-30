@@ -86,6 +86,25 @@ def detect(
     logger.debug(f"Feature vector length: {len(feature_freq_vector)}")
     logger.debug(f"Feature phase vector length: {len(feature_phase_vector)}")
 
+    # Error handling - Padding 2  # TODO: Avoid shortening in VMD and remove this
+    if len(feature_freq_vector) < config["feature_len"]:
+        logger.warning(
+            "The feature vector is shorter than the expected length, probably due to use of VMD. Padding with nominal enf might affect the result."
+        )
+        # pad with config["nominal_enf"]
+        feature_freq_vector = np.pad(
+            feature_freq_vector,
+            (0, config["feature_len"] - len(feature_freq_vector)),
+            constant_values=config["nominal_enf"],
+        )
+    if len(feature_phase_vector) < config["feature_len"]:
+        # pad with nan
+        feature_phase_vector = np.pad(
+            feature_phase_vector,
+            (0, config["feature_len"] - len(feature_phase_vector)),
+            constant_values=np.nan,
+        )
+
     # Classification
     # logger.info(f"Using {classifier.upper()} classifier.")
     print(
