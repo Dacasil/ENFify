@@ -1,11 +1,11 @@
 import numpy as np
 
+from enfify.enf_enhancement import RFA_STFT, VMD
 from enfify.feature_calculation import framing, freq_estimation_DFT1
 from enfify.phase_extraction import phase_estimation_DFT1
 from enfify.preprocessing import (
     butterworth_bandpass_filter,
     downsample_ffmpeg,
-    downsample_scipy_new,
     fir_bandpass_filter,
 )
 
@@ -38,6 +38,30 @@ def feature_freq_pipeline(sig, sample_freq, config):
     highcut = config["nominal_enf"] + config["bandpass_delta"]
     bandpass_order = config["bandpass_order"]
     sig = butterworth_bandpass_filter(sig, sample_freq, lowcut, highcut, bandpass_order)
+
+    # Variational Mode Decomposition
+    VMD_config = config["VMD"]
+    if VMD_config["is_enabled"]:
+        loop = VMD_config["loop"]
+        alpha = VMD_config["alpha"]
+        tau = VMD_config["tau"]
+        n_mode = VMD_config["n_mode"]
+        DC = VMD_config["DC"]
+        tol = VMD_config["tol"]
+
+        for i in range(loop):
+            u_clean, _, _ = VMD(sig, alpha, tau, n_mode, DC, tol)
+            sig = u_clean[0]
+
+    # Robust Filtering Algorithm
+    RFA_config = config["RFA"]
+    if RFA_config["is_enabled"]:
+        f0 = RFA_config["f0"]
+        i = RFA_config["I"]
+        tau = RFA_config["tau"]
+        # epsilon = RFA_config["epsilon"]
+
+        sig = RFA_STFT(sig, downsample_freq, tau, i, f0, config["frame_len"], config["frame_step"])
 
     # Frame Splitting
     window_type = config["window_type"]

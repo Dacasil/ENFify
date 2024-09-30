@@ -1,0 +1,17 @@
+VMD: 
+  is_enabled: True
+  loop: 1              # Number of VMD iterations
+  alpha: 5_000          # Balancing parameter of the data-fidelity constraint
+  tau: 0               # Noise-tolerance (no strict fidelity enforcement)
+  n_mode: 1            # Number of modes to be recovered
+  DC: false            # True if the first mode is to be DC (0-freq)
+  tol: !!float 1e-7    # Tolerance of convergence criterion
+
+
+# Robust Filtering Algorithm (RFA)
+RFA: 
+  is_enabled: True
+  f0: 50                   # estimated frequency (here ENF second harmonic)     
+  I: 1                      # Number of RFA repeats
+  tau: 300           # RFA winoow size
+  epsilon: !!float 1e-20    # Noise-tolerance (no strict fidelity enforcement)
