@@ -26,12 +26,15 @@ from enfify import (
     sectioning,
 )
 from enfify.example_files import create_auth_tamp_clip, func_ENF_synthesis_corrupted_harmonic
+from enfify.pipeline import feature_phase_pipeline
 
+# Logging & Warnings
 logger.remove()
 logger.add(sys.stderr, level="INFO")
 warnings.filterwarnings("ignore", category=wavfile.WavFileWarning)
 
-app = typer.Typer()
+# Typer
+app = typer.Typer(pretty_exceptions_show_locals=False)
 
 # CONSTANTS
 DEFAULT_CONFIG_FILE = CONFIG_DIR / "default.yml"
@@ -53,7 +56,7 @@ def detect(
     bandpass_delta: Annotated[float, typer.Option(help="Bandpass filter delta in Hertz. Added and subtracted from nominal_enf to get the bandpass filter range.")] = DEFAULT["bandpass_delta"],
     frame_len: Annotated[float, typer.Option(help="Frame length for feature calculation in milliseconds.")] = DEFAULT["frame_len"],
     frame_step: Annotated[float, typer.Option(help="Frame step for feature calculation in milliseconds.")] = DEFAULT["frame_step"],
-    create_report: Annotated[bool, typer.Option(help="Create a report of the classification.")] = DEFAULT["create_report"],
+    create_report: Annotated[bool, typer.Option(help="Create a plot of the features in the current dir.")] = DEFAULT["create_report"],
     # fmt: on
 ):
     """Program to classify an audiofile as authentic or tampered based on the ENF signal."""
@@ -63,8 +66,13 @@ def detect(
 
     # Loading
     print(f"[bold white]Analyzing audio file: [bold cyan]{audio_file}[/bold cyan][/bold white]")
-    sample_freq, sig = wavfile.read(audio_file)
+    try:
+        sample_freq, sig = wavfile.read(audio_file)
+    except FileNotFoundError:
+        print(f"[bold red]File not found: {audio_file}[/bold red]")
+        exit(1)
 
+    # Error handling - Padding
     if len(sig) / sample_freq < 10:
         logger.warning(
             "The audio file is less than 10 seconds long but model trained with 10 second files. Padding with zeros might affect the result."
@@ -72,38 +80,80 @@ def detect(
         sig = np.pad(sig, (0, 10 * sample_freq - len(sig)))
 
     # Preprocessing
-    feature_freq_vector = feature_freq_pipeline(sig, sample_freq, config)
+    times, feature_freq_vector = feature_freq_pipeline(sig.copy(), sample_freq, config)
+    _, feature_phase_vector = feature_phase_pipeline(sig.copy(), sample_freq, config)
+    logger.debug(f"Feature vector length: {len(feature_freq_vector)}")
+    logger.debug(f"Feature phase vector length: {len(feature_phase_vector)}")
+
+    # Error handling - Padding 2  # TODO: Avoid shortening in VMD and remove this
+    if len(feature_freq_vector) < config["feature_len"]:
+        logger.warning(
+            "The feature vector is shorter than the expected length, probably due to use of VMD. Padding with nominal enf might affect the result."
+        )
+        # pad with config["nominal_enf"]
+        feature_freq_vector = np.pad(
+            feature_freq_vector,
+            (0, config["feature_len"] - len(feature_freq_vector)),
+            constant_values=config["nominal_enf"],
+        )
+    if len(feature_phase_vector) < config["feature_len"]:
+        # pad with nan
+        feature_phase_vector = np.pad(
+            feature_phase_vector,
+            (0, config["feature_len"] - len(feature_phase_vector)),
+            constant_values=np.nan,
+        )
 
     # Classification
+    print(
+        f"[bold white]Using classifier: [bold yellow]{classifier.upper()}[/bold yellow][/bold white]"
+    )
     if classifier == "cnn":
         logger.debug("Using CNN classifier")
-        feature_len = config["feature_len"]
-        feature_freq = 1000 / config["frame_step"]
-        min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
-        sections = sectioning(feature_freq_vector, feature_len, min_overlap)
 
-        model_path = MODELS_DIR / "onedcnn_model_carioca_83.pth"
-        labels = [cnn_classifier(model_path, section) for section in sections]
-        logger.debug(f"Labels: {labels}")
-        logger.debug(f"num labels: {len(labels)}")
-        prediction = any(labels)
+        model_path = MODELS_DIR / "onedcnn_model_alldata_86.pth"
+        feature_len = config["feature_len"]
+        if len(feature_freq_vector) == feature_len:
+            logger.debug("Only one clip.")
+            prediction, confidence = cnn_classifier(model_path, feature_freq_vector)
+        else:
+            feature_freq = 1000 / config["frame_step"]
+            min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
+            sections = sectioning(feature_freq_vector, feature_len, min_overlap)
+            labels_confidences = [cnn_classifier(model_path, section) for section in sections]
+            labels, _ = zip(*labels_confidences)
+            prediction = any(labels)
+            if prediction:
+                confidence = max(conf for label, conf in labels_confidences if label)
+            else:
+                confidence = max(
+                    conf for label, conf in labels_confidences if not label
+                )  # redundant
+            logger.debug(f"Labels: {labels}")
+            logger.debug(f"num labels: {len(labels)}")
+
     elif classifier == "cnn-bilstm":
         logger.warning("Using CNN-BiLSTM classifier with unoptimized feature preprocessing.")
         model_path = MODELS_DIR / "cnn_bilstm_alldata_model.pth"
         spatial_scaler_path = MODELS_DIR / "cnn_bilstm_alldata_spatial_scaler.pkl"
         temporal_scaler_path = MODELS_DIR / "cnn_bilstm_alldata_temporal_scaler.pkl"
-        prediction = bilstm_classifier(
+        prediction, confidence = bilstm_classifier(
             feature_freq_vector, config, model_path, spatial_scaler_path, temporal_scaler_path
         )
 
     # Output
     if prediction:
-        print(Panel(Text(text="Tampered", style="bold red"), expand=False))
+        text = Text(text=f"Tampered\n({confidence*100:.1f}% Confidence)", style="bold red")
+        print(Panel(text, expand=False))
     else:
-        print(Panel(Text(text="Authentic", style="bold green"), expand=False))
+        text = Text(text=f"Authentic\n({confidence*100:.1f}% Confidence)", style="bold green")
+        print(Panel(text, expand=False))
 
+    # Report
     if config["create_report"]:
-        report(config, labels)
+        report(
+            prediction, confidence, audio_file, times, feature_freq_vector, feature_phase_vector
+        )
 
 
 @app.command()
@@ -118,7 +168,7 @@ def example_config():
 
 
 @app.command()
-def example_synth():
+def example_synthetic():
     """Creates example audio files of synthetic data in the current directory.
     One authentic and one tampered."""
 
@@ -142,22 +192,30 @@ def example_synth():
     start_ind, cutlen_samples = create_auth_tamp_clip(
         raw_sig, sample_freq, audio_length, max_cut_length, auth_path, tamp_path
     )
-    logger.info(f"Saved authentic file: {auth_path.absolute()}")
-    logger.info(f"Saved tampered file: {tamp_path.absolute()}")
+    print(
+        f"[bold white]Created authentic synthetic file: [bold cyan]{auth_path.absolute()}[/bold cyan][/bold white]"
+    )
+    print(
+        f"[bold white]Created tampered synthetic file: [bold cyan]{tamp_path.absolute()}[/bold cyan][/bold white]"
+    )
 
     cut_info_path = EXAMPLE_OUTDIR / "cut_info.yml"
     cut_info = {
         auth_path.name: {"start": start_ind / sample_freq, "cutlen": cutlen_samples / sample_freq}
     }
+    try:
+        with open(cut_info_path, "r") as f:
+            prev = yaml.safe_load(f)
+            prev.update(cut_info)
+            cut_info = prev
+    except FileNotFoundError:
+        pass
     with open(cut_info_path, "w") as f:
         yaml.dump(cut_info, f)
-    print(
-        f"[bold white]Created synthetic example audio files in folder: [bold cyan]{EXAMPLE_OUTDIR.absolute()}[/bold cyan][/bold white]"
-    )
 
 
 @app.command()
-def example_whu():
+def example_whuref():
     """Creates example audio files of WHU_ref data in the current directory.
     One authentic and one tampered."""
 
@@ -175,7 +233,7 @@ def example_whu():
     tamp_path = EXAMPLE_OUTDIR / "whuref-tamp.wav"
 
     # Download the file
-    logger.info(f"Downloading the file from: {url}")
+    print(f"[bold white]Downloading the file from: [bold yellow]{url}[/bold yellow][/bold white]")
     response = requests.get(url)
 
     if response.status_code != 200:
@@ -184,7 +242,6 @@ def example_whu():
     with open(temp_path, "wb") as f:
         f.write(response.content)
 
-    logger.info("Saving the file ...")
     sample_freq, sig = wavfile.read(temp_path)
 
     # Trim the file
@@ -192,8 +249,11 @@ def example_whu():
     max_cutlen_samples = max_cutlen * sample_freq
 
     # Save the authentic file
-    wavfile.write(auth_path, sample_freq, sig[:audiolen_samples])
-    logger.info(f"Saved authentic file: {auth_path.absolute()}")
+    auth_sig = sig[:audiolen_samples]
+    wavfile.write(auth_path, sample_freq, auth_sig)
+    print(
+        f"[bold white]Saved authentic WHU_ref file: [bold cyan]{auth_path.absolute()}[/bold cyan][/bold white]"
+    )
 
     # Tamper the file
     sig = sig[: audiolen_samples + max_cutlen_samples]
@@ -201,17 +261,23 @@ def example_whu():
     start_ind = np.random.randint(0, audiolen_samples - 2 * cutlen_samples)
     tamp_sig = np.delete(sig.copy(), slice(start_ind, start_ind + cutlen_samples))
     wavfile.write(tamp_path, sample_freq, tamp_sig)
-    logger.info(f"Saved tampered file: {tamp_path.absolute()}")
+    print(
+        f"[bold white]Saved tampered WHU_ref file: [bold cyan]{tamp_path.absolute()}[/bold cyan][/bold white]"
+    )
 
     cut_info_path = EXAMPLE_OUTDIR / "cut_info.yml"
     cut_info = {
         auth_path.name: {"start": start_ind / sample_freq, "cutlen": cutlen_samples / sample_freq}
     }
+    try:
+        with open(cut_info_path, "r") as f:
+            prev = yaml.safe_load(f)
+            prev.update(cut_info)
+            cut_info = prev
+    except FileNotFoundError:
+        pass
     with open(cut_info_path, "w") as f:
         yaml.dump(cut_info, f)
-    print(
-        f"[bold white]Created example audio files from WHU_ref dataset in folder: [bold cyan]{EXAMPLE_OUTDIR.absolute()}[/bold cyan][/bold white]"
-    )
 
 
 def select_config(default, config_file, _locals):

@@ -1,5 +1,5 @@
 # #### APPLICATION CONFIGURATION ####
-create_report: False  # If True, creates report files.
+create_report: True  # If True, creates report files.
 classifier: 'cnn'  # Classifier to use for classification (cnn|cnn-bilstm).
 
 # #### CLASSIFICATION CNN ####
@@ -33,3 +33,25 @@ n_dft: 20_000  # Number of DFT points for frequency estimation.
 
 # Trim
 feature_trim: 40  # samples # Remove this many unusable samples from the start and end of the feature.
+
+
+# #### ENF ENHANCEMENT CONFIGURATION ####
+# Warning: The following configurations are experimental and must be adjusted carefully individually.
+# Variational Mode Decomposition (VMD)
+VMD: 
+  is_enabled: False
+  loop: 1              # Number of VMD iterations
+  alpha: 5_000          # Balancing parameter of the data-fidelity constraint
+  tau: 0               # Noise-tolerance (no strict fidelity enforcement)
+  n_mode: 1            # Number of modes to be recovered
+  DC: false            # True if the first mode is to be DC (0-freq)
+  tol: !!float 1e-7    # Tolerance of convergence criterion
+
+
+# Robust Filtering Algorithm (RFA)
+RFA: 
+  is_enabled: False
+  f0: 50                   # estimated frequency (here ENF second harmonic)     
+  I: 1                      # Number of RFA repeats
+  tau: 300           # RFA winoow size
+  epsilon: !!float 1e-20    # Noise-tolerance (no strict fidelity enforcement)

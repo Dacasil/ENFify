@@ -6,6 +6,30 @@ import ffmpeg
 import numpy as np
 from scipy import signal
 from scipy.io import wavfile
+from scipy.signal import resample
+
+
+def downsample_scipy_new(sig, sampling_rate, downsampling_rate):
+    """Apply downsampling using scipy and remove DC components
+
+    Args:
+        sig (numpy.ndarray): Audio signal
+        sampling_rate (float): Current downsample sampling frequency
+        downsampling_rate (float): Desired downsample sampling frequency
+
+    Returns:
+        numpy.ndarray: Downsampled signal
+        float: Downsample sampling frequency
+    """
+    # Remove DC components
+    dc_sig = sig - np.mean(sig)
+
+    # Resample the audio signal
+    resampled_sig = resample(dc_sig, int(len(dc_sig) * downsampling_rate / sampling_rate))
+
+    # Add here Librosa instead of resample maybe
+
+    return resampled_sig, downsampling_rate
 
 
 def downsample_ffmpeg(sig, sampling_rate, downsampling_rate):

@@ -23,11 +23,15 @@ def framing(sig, sample_freq, frame_len, frame_shift, window_type):
     frames = np.zeros((num_frames, frame_len_samples))
 
     window = get_window(window_type, frame_len_samples)
+    start_times = []
     for i in range(num_frames):
         start = i * frame_shift_samples
         end = start + frame_len_samples
         frames[i] = sig[start:end] * window
-    return frames
+        start_times.append(start / sample_freq)
+    start_times = np.array(start_times)
+
+    return start_times, frames
 
 
 # Estimate frequency with DFT¹ instantaneous estimation (Rodriguez Paper)
