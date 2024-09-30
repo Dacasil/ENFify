@@ -3,7 +3,6 @@ import shutil
 import sys
 import tempfile
 import warnings
-from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
@@ -106,7 +105,6 @@ def detect(
         )
 
     # Classification
-    # logger.info(f"Using {classifier.upper()} classifier.")
     print(
         f"[bold white]Using classifier: [bold yellow]{classifier.upper()}[/bold yellow][/bold white]"
     )
@@ -170,7 +168,7 @@ def example_config():
 
 
 @app.command()
-def example_synth():
+def example_synthetic():
     """Creates example audio files of synthetic data in the current directory.
     One authentic and one tampered."""
 
@@ -194,8 +192,12 @@ def example_synth():
     start_ind, cutlen_samples = create_auth_tamp_clip(
         raw_sig, sample_freq, audio_length, max_cut_length, auth_path, tamp_path
     )
-    logger.info(f"Saved authentic file: {auth_path.absolute()}")
-    logger.info(f"Saved tampered file: {tamp_path.absolute()}")
+    print(
+        f"[bold white]Created authentic synthetic file: [bold cyan]{auth_path.absolute()}[/bold cyan][/bold white]"
+    )
+    print(
+        f"[bold white]Created tampered synthetic file: [bold cyan]{tamp_path.absolute()}[/bold cyan][/bold white]"
+    )
 
     cut_info_path = EXAMPLE_OUTDIR / "cut_info.yml"
     cut_info = {
@@ -210,9 +212,6 @@ def example_synth():
         pass
     with open(cut_info_path, "w") as f:
         yaml.dump(cut_info, f)
-    print(
-        f"[bold white]Created synthetic example audio files in folder: [bold cyan]{EXAMPLE_OUTDIR.absolute()}[/bold cyan][/bold white]"
-    )
 
 
 @app.command()
@@ -234,7 +233,7 @@ def example_whuref():
     tamp_path = EXAMPLE_OUTDIR / "whuref-tamp.wav"
 
     # Download the file
-    logger.info(f"Downloading the file from: {url}")
+    print(f"[bold white]Downloading the file from: [bold yellow]{url}[/bold yellow][/bold white]")
     response = requests.get(url)
 
     if response.status_code != 200:
@@ -243,7 +242,6 @@ def example_whuref():
     with open(temp_path, "wb") as f:
         f.write(response.content)
 
-    logger.info("Saving the file ...")
     sample_freq, sig = wavfile.read(temp_path)
 
     # Trim the file
@@ -253,8 +251,9 @@ def example_whuref():
     # Save the authentic file
     auth_sig = sig[:audiolen_samples]
     wavfile.write(auth_path, sample_freq, auth_sig)
-    logger.info(f"Saved authentic file: {auth_path.absolute()}")
-    logger.info(f"Auth hash: {sha256(auth_sig).hexdigest()}")
+    print(
+        f"[bold white]Saved authentic WHU_ref file: [bold cyan]{auth_path.absolute()}[/bold cyan][/bold white]"
+    )
 
     # Tamper the file
     sig = sig[: audiolen_samples + max_cutlen_samples]
@@ -262,8 +261,9 @@ def example_whuref():
     start_ind = np.random.randint(0, audiolen_samples - 2 * cutlen_samples)
     tamp_sig = np.delete(sig.copy(), slice(start_ind, start_ind + cutlen_samples))
     wavfile.write(tamp_path, sample_freq, tamp_sig)
-    logger.info(f"Saved tampered file: {tamp_path.absolute()}")
-    logger.debug(f"Tamp hash: {sha256(tamp_sig).hexdigest()}")
+    print(
+        f"[bold white]Saved tampered WHU_ref file: [bold cyan]{tamp_path.absolute()}[/bold cyan][/bold white]"
+    )
 
     cut_info_path = EXAMPLE_OUTDIR / "cut_info.yml"
     cut_info = {
@@ -278,9 +278,6 @@ def example_whuref():
         pass
     with open(cut_info_path, "w") as f:
         yaml.dump(cut_info, f)
-    print(
-        f"[bold white]Created example audio files from WHU_ref dataset in folder: [bold cyan]{EXAMPLE_OUTDIR.absolute()}[/bold cyan][/bold white]"
-    )
 
 
 def select_config(default, config_file, _locals):

@@ -1,5 +1,3 @@
-from hashlib import sha256
-
 import numpy as np
 from loguru import logger
 from scipy.io import wavfile
@@ -81,13 +79,11 @@ def create_auth_tamp_clip(raw_sig, sample_rate, clip_length, max_cutlen, auth_pa
 
     auth_sig = raw_sig[:cliplen_samples]
     wavfile.write(auth_path, sample_rate, auth_sig)
-    logger.debug(f"Auth hash: {sha256(auth_sig).hexdigest()}")
 
     max_cutlen_samples = int(max_cutlen * sample_rate)
     cutlen_samples = np.random.randint(max_cutlen_samples) + 1
     start = np.random.randint(0, cliplen_samples - cutlen_samples)
     tamp_sig = np.delete(raw_sig.copy(), slice(start, start + cutlen_samples))[:cliplen_samples]
     wavfile.write(tamp_path, sample_rate, tamp_sig)
-    logger.debug(f"Tamp hash: {sha256(tamp_sig).hexdigest()}")
 
     return start, cutlen_samples
