@@ -1,5 +1,5 @@
 # #### APPLICATION CONFIGURATION ####
-create_report: False  # If True, creates report files.
+create_report: True  # If True, creates report files.
 classifier: 'cnn'  # Classifier to use for classification (cnn|cnn-bilstm).
 
 # #### CLASSIFICATION CNN ####

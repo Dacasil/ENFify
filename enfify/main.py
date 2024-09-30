@@ -27,12 +27,15 @@ from enfify import (
     sectioning,
 )
 from enfify.example_files import create_auth_tamp_clip, func_ENF_synthesis_corrupted_harmonic
+from enfify.pipeline import feature_phase_pipeline
 
+# Logging & Warnings
 logger.remove()
 logger.add(sys.stderr, level="DEBUG")  # TODO: change to INFO
 warnings.filterwarnings("ignore", category=wavfile.WavFileWarning)
 
-app = typer.Typer()
+# Typer
+app = typer.Typer(pretty_exceptions_show_locals=False)
 
 # CONSTANTS
 DEFAULT_CONFIG_FILE = CONFIG_DIR / "default.yml"
@@ -54,7 +57,7 @@ def detect(
     bandpass_delta: Annotated[float, typer.Option(help="Bandpass filter delta in Hertz. Added and subtracted from nominal_enf to get the bandpass filter range.")] = DEFAULT["bandpass_delta"],
     frame_len: Annotated[float, typer.Option(help="Frame length for feature calculation in milliseconds.")] = DEFAULT["frame_len"],
     frame_step: Annotated[float, typer.Option(help="Frame step for feature calculation in milliseconds.")] = DEFAULT["frame_step"],
-    create_report: Annotated[bool, typer.Option(help="Create a report of the classification.")] = DEFAULT["create_report"],
+    create_report: Annotated[bool, typer.Option(help="Create a plot of the features in the current dir.")] = DEFAULT["create_report"],
     # fmt: on
 ):
     """Program to classify an audiofile as authentic or tampered based on the ENF signal."""
@@ -64,7 +67,11 @@ def detect(
 
     # Loading
     print(f"[bold white]Analyzing audio file: [bold cyan]{audio_file}[/bold cyan][/bold white]")
-    sample_freq, sig = wavfile.read(audio_file)
+    try:
+        sample_freq, sig = wavfile.read(audio_file)
+    except FileNotFoundError:
+        print(f"[bold red]File not found: {audio_file}[/bold red]")
+        exit(1)
 
     # Error handling - Padding
     if len(sig) / sample_freq < 10:
@@ -74,9 +81,16 @@ def detect(
         sig = np.pad(sig, (0, 10 * sample_freq - len(sig)))
 
     # Preprocessing
-    feature_freq_vector = feature_freq_pipeline(sig, sample_freq, config)
+    times, feature_freq_vector = feature_freq_pipeline(sig.copy(), sample_freq, config)
+    _, feature_phase_vector = feature_phase_pipeline(sig.copy(), sample_freq, config)
+    logger.debug(f"Feature vector length: {len(feature_freq_vector)}")
+    logger.debug(f"Feature phase vector length: {len(feature_phase_vector)}")
 
     # Classification
+    # logger.info(f"Using {classifier.upper()} classifier.")
+    print(
+        f"[bold white]Using classifier: [bold yellow]{classifier.upper()}[/bold yellow][/bold white]"
+    )
     if classifier == "cnn":
         logger.debug("Using CNN classifier")
 
@@ -90,7 +104,7 @@ def detect(
             min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
             sections = sectioning(feature_freq_vector, feature_len, min_overlap)
             labels_confidences = [cnn_classifier(model_path, section) for section in sections]
-            labels, confidences = zip(*labels_confidences)
+            labels, _ = zip(*labels_confidences)
             prediction = any(labels)
             if prediction:
                 confidence = max(conf for label, conf in labels_confidences if label)
@@ -118,8 +132,11 @@ def detect(
         text = Text(text=f"Authentic\n({confidence*100:.1f}% Confidence)", style="bold green")
         print(Panel(text, expand=False))
 
+    # Report
     if config["create_report"]:
-        report(config, labels)
+        report(
+            prediction, confidence, audio_file, times, feature_freq_vector, feature_phase_vector
+        )
 
 
 @app.command()
