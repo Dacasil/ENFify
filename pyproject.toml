@@ -29,6 +29,7 @@ librosa = "^0.10.2.post1"
 [tool.poetry.group.dev.dependencies]
 ipykernel = "^6.29.5"
 torchsummary = "^1.5.1"
+seaborn = "^0.13.2"
 
 
 [[tool.poetry.source]]
