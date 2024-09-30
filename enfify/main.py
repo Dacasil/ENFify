@@ -112,19 +112,11 @@ def detect(
 
     # Output
     if prediction:
-        print(
-            Panel(
-                Text(text=f"Tampered\n({confidence*100:.1f}% Confidence)", style="bold red"),
-                expand=False,
-            )
-        )
+        text = Text(text=f"Tampered\n({confidence*100:.1f}% Confidence)", style="bold red")
+        print(Panel(text, expand=False))
     else:
-        print(
-            Panel(
-                Text(text=f"Authentic\n({confidence*100:.1f}% Confidence)", style="bold green"),
-                expand=False,
-            )
-        )
+        text = Text(text=f"Authentic\n({confidence*100:.1f}% Confidence)", style="bold green")
+        print(Panel(text, expand=False))
 
     if config["create_report"]:
         report(config, labels)

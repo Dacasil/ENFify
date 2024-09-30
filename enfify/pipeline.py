@@ -50,26 +50,7 @@ from enfify.preprocessing import (
 #     return spatial_features, temporal_features
 
 
-def feature_freq_pipeline(sig, sample_freq, config):
-    """
-    Processes an audio signal to extract frequency features.
-
-    Args:
-        sig (numpy.ndarray): The input audio signal
-        sample_freq (float): The sampling frequency of the input signal
-        config (dict): Configuration dictionary containing parameters for processing
-
-    Returns:
-        tuple: A tuple containing:
-            - numpy.ndarray: The extracted spatial features.
-            - numpy.ndarray: The extracted temporal features.
-
-    Process:
-        - Downsamples the signal.
-        - Applies a bandpass filter.
-        - Estimates the instantaneous frequencies.
-        - Trims the boundary values from the frequency estimates.
-    """
+def get_cycles(sig, sample_freq, config):
     # Downsampling
     downsample_freq = config["downsample_per_enf"] * config["nominal_enf"]
     sig, sample_freq = downsample_ffmpeg(sig, sample_freq, downsample_freq)
@@ -86,6 +67,29 @@ def feature_freq_pipeline(sig, sample_freq, config):
     frame_shift = config["frame_step"]
     frames = framing(sig, sample_freq, frame_len, frame_shift, window_type)
 
+    return frames
+
+
+def feature_freq_pipeline(sig, sample_freq, config):
+    # """
+    # Processes an audio signal to extract frequency features.
+
+    # Args:
+    #     sig (numpy.ndarray): The input audio signal
+    #     sample_freq (float): The sampling frequency of the input signal
+    #     config (dict): Configuration dictionary containing parameters for processing
+
+    # Returns:
+    #     - numpy.ndarray: The extracted spatial features.
+
+    # Process:
+    #     - Downsamples the signal.
+    #     - Applies a bandpass filter.
+    #     - Estimates the instantaneous frequencies.
+    #     - Trims the boundary values from the frequency estimates.
+    # """
+    frames = get_cycles(sig, sample_freq, config)
+
     # Frequency Estimation
     n_dft = config["n_dft"]
     window_type = config["window_type"]
@@ -99,13 +103,21 @@ def feature_freq_pipeline(sig, sample_freq, config):
     return feature_freq
 
 
+def feature_phase_pipeline(sig, sample_freq, config):
+    frames = get_cycles(sig, sample_freq, config)
+
+    # Phase Estimation
+    raise NotImplementedError
+
+
+# TODO: Remove when not needed
 if __name__ == "__main__":
     from pathlib import Path
 
     import yaml
     from scipy.io import wavfile
 
-    from enfify.visualization import plot_feature_freq
+    # from enfify.visualization import plot_feature_freq
 
     path = Path("/home/cloud/enfify/data/interim/Carioca1/HC01-00-tamp.wav")
     sample_freq, sig = wavfile.read(path)
@@ -114,4 +126,4 @@ if __name__ == "__main__":
     with open("/home/cloud/enfify/config/config_carioca.yml", "r") as f:
         config.update(yaml.safe_load(f))
     feature_freq = feature_freq_pipeline(sig, sample_freq, config)
-    plot_feature_freq(feature_freq, path.name)
+    # plot_feature_freq(feature_freq, path.name)
