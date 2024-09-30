@@ -9,6 +9,7 @@ Welcome to **ENFify**, an open-source tool to detect digital audio tampering usi
 - [Example Files](#example-files)
 - [Testing](#testing)
 - [Configuration](#configuration)
+- [Training](#training)
 - [Contributing](#contributing)
 - [License](#license)
 - [References](#references)
@@ -78,6 +79,9 @@ enfify detect synthetic_tamp.wav
 This classifies the file in the command line and in the default configuration also generates a report with the audio features for more insight in the current directory.
 
 Feel free to experiment by adding manual cuts on the authentic file.
+
+## Training
+The models were trained on Kaggle. Copies of the notebooks used are located in the [training](training) folder. Additional exploratory notebooks can be found in the [notebooks](notebooks) folder, but some of the older ones are partially dependent on an earlier version of the repository.
 
 ## Configuration
 
