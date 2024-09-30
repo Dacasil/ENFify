@@ -31,7 +31,7 @@ from enfify.pipeline import feature_phase_pipeline
 
 # Logging & Warnings
 logger.remove()
-logger.add(sys.stderr, level="DEBUG")  # TODO: change to INFO
+logger.add(sys.stderr, level="INFO")
 warnings.filterwarnings("ignore", category=wavfile.WavFileWarning)
 
 # Typer
@@ -113,7 +113,7 @@ def detect(
     if classifier == "cnn":
         logger.debug("Using CNN classifier")
 
-        model_path = MODELS_DIR / "onedcnn_model_carioca_83.pth"
+        model_path = MODELS_DIR / "onedcnn_model_alldata_86.pth"
         feature_len = config["feature_len"]
         if len(feature_freq_vector) == feature_len:
             logger.debug("Only one clip.")
