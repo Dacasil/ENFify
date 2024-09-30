@@ -1,8 +1,8 @@
 from math import ceil
-
 from loguru import logger
 import numpy as np
 import torch
+import torch.nn.functional as F
 from sklearn.preprocessing import robust_scale
 
 from enfify.config import DATA_DIR
@@ -17,7 +17,7 @@ def cnn_classifier(model_path, feature_vector):
         feature_vector (numpy.ndarray): Input feature vector to classify.
 
     Returns:
-        int: The predicted class (e.g., 0 or 1 for binary classification).
+        Tuple[int, float]: The predicted class (0 or 1) and the confidence for the prediction.
     """
     # Load the saved model
     model = OneDCNN()
@@ -38,10 +38,14 @@ def cnn_classifier(model_path, feature_vector):
     with torch.no_grad():  # Disable gradient computation
         output = model(feature_vector)
 
-    # Get the class prediction (output is (batch_size, 2) for binary classification)
-    predicted_class = torch.argmax(output, dim=1).item()
+    # Apply softmax to get probabilities
+    probabilities = F.softmax(output, dim=1)
 
-    return predicted_class
+    # Get the predicted class and its confidence
+    predicted_class = torch.argmax(probabilities, dim=1).item()
+    confidence = probabilities[0][predicted_class].item()  # Confidence for the predicted class
+
+    return predicted_class, confidence
 
 
 def sectioning(array, section_len, min_overlap):
@@ -69,8 +73,10 @@ def sectioning(array, section_len, min_overlap):
 
 if __name__ == "__main__":
     model_path = "/home/cloud/enfify/models/onedcnn_model_carioca_83.pth"
-    filepath = DATA_DIR / "_processed_for_training" / "Carioca1" / "HC01-00-tamp.npy"
+    filepath = DATA_DIR / "processed" / "Carioca1" / "HC01-00-tamp.npy"
     filename = filepath.name
     feature_vec = np.load(filepath)
     feature_vec = feature_vec[40:-40]
-    print(cnn_classifier(model_path, feature_vec))
+
+    predicted_class, confidence = cnn_classifier(model_path, feature_vec)
+    print(f"Predicted Class: {predicted_class}, Confidence: {confidence:.2f}")

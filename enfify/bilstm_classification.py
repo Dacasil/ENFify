@@ -57,42 +57,49 @@ def bilstm_classifier(feature_freq, config, model_path, spatial_scaler_path, tem
     with torch.no_grad():
         output = model(spatial_features, temporal_features)
 
-    prediction = torch.sigmoid(output)
-    prediction = (prediction > 0.5).int().item()
-    return prediction
+    score = torch.sigmoid(output).item()  # Value between 0 and 1
+    prediction = int((score > 0.5))  # 1 for tampered, 0 for authentic
+    confidence = score if prediction else 1 - score
+
+    return prediction, confidence
 
 
 # TODO: remove when not needed
-# if __name__ == "__main__":
-#     from pathlib import Path
+if __name__ == "__main__":
+    from pathlib import Path
 
-#     import librosa
-#     import numpy as np
-#     from sklearn.metrics import confusion_matrix, accuracy_score
-#     from tqdm import tqdm
+    import librosa
+    from sklearn.metrics import confusion_matrix, accuracy_score
+    from tqdm import tqdm
 
-#     from enfify.config import DEFAULT_CONFIG
-#     from enfify.pipeline import feature_freq_pipeline
-#     from enfify.visualization import plot_feature_freq
+    from enfify.config import DEFAULT_CONFIG
+    from enfify.pipeline import feature_freq_pipeline
 
-#     model_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_model.pth"
-#     spatial_scaler_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_spatial_scaler.pkl"
-#     temporal_scaler_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_temporal_scaler.pkl"
+    model_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_model.pth"
+    spatial_scaler_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_spatial_scaler.pkl"
+    temporal_scaler_path = "/home/cloud/enfify/models/cnn_bilstm_alldata_temporal_scaler.pkl"
 
-#     # Load data
-#     files = sorted(Path("/home/cloud/enfify/data/interim/WHU_ref").glob("*.wav"))[:100]
-#     labels = [int("tamp" in file.name) for file in files]
+    # Load data
+    files = sorted(Path("/home/cloud/enfify/data/interim/WHU_ref").glob("*.wav"))[:100]
 
-#     predictions = []
-#     for file in tqdm(files):
-#         sig, sample_freq = librosa.load(file)
-#         feature_freq = feature_freq_pipeline(sig, sample_freq, DEFAULT_CONFIG)
-#         prediction = bilstm_classifier(
-#             feature_freq, DEFAULT_CONFIG, model_path, spatial_scaler_path, temporal_scaler_path
-#         )
-#         predictions.append(prediction)
+    predictions = []
+    labels = []
+    for file in (pbar := tqdm(files)):
+        label = int("tamp" in file.name)
+        labels.append(label)
 
-#     cm = confusion_matrix(labels, predictions)
-#     print(f"Confusion Matrix:\n{cm}")
-#     accuracy = accuracy_score(labels, predictions)
-#     print(f"Accuracy: {accuracy}")
+        sig, sample_freq = librosa.load(file)
+        feature_freq = feature_freq_pipeline(sig, sample_freq, DEFAULT_CONFIG)
+        prediction, confidence = bilstm_classifier(
+            feature_freq, DEFAULT_CONFIG, model_path, spatial_scaler_path, temporal_scaler_path
+        )
+        predictions.append(prediction)
+
+        pbar.set_postfix_str(
+            f"Label: {label}, Prediction: {prediction}, Confidence: {confidence:.2f}"
+        )
+
+    cm = confusion_matrix(labels, predictions)
+    print(f"Confusion Matrix:\n{cm}")
+    accuracy = accuracy_score(labels, predictions)
+    print(f"Accuracy: {accuracy}")

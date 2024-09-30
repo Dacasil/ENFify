@@ -3,6 +3,7 @@ import shutil
 import sys
 import tempfile
 import warnings
+from hashlib import sha256
 from pathlib import Path
 
 import numpy as np
@@ -28,9 +29,8 @@ from enfify import (
 from enfify.example_files import create_auth_tamp_clip, func_ENF_synthesis_corrupted_harmonic
 
 logger.remove()
-logger.add(sys.stderr, level="INFO")
+logger.add(sys.stderr, level="DEBUG")  # TODO: change to INFO
 warnings.filterwarnings("ignore", category=wavfile.WavFileWarning)
-np.random.seed(0)
 
 app = typer.Typer()
 
@@ -66,6 +66,7 @@ def detect(
     print(f"[bold white]Analyzing audio file: [bold cyan]{audio_file}[/bold cyan][/bold white]")
     sample_freq, sig = wavfile.read(audio_file)
 
+    # Error handling - Padding
     if len(sig) / sample_freq < 10:
         logger.warning(
             "The audio file is less than 10 seconds long but model trained with 10 second files. Padding with zeros might affect the result."
@@ -78,30 +79,52 @@ def detect(
     # Classification
     if classifier == "cnn":
         logger.debug("Using CNN classifier")
-        feature_len = config["feature_len"]
-        feature_freq = 1000 / config["frame_step"]
-        min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
-        sections = sectioning(feature_freq_vector, feature_len, min_overlap)
 
         model_path = MODELS_DIR / "onedcnn_model_carioca_83.pth"
-        labels = [cnn_classifier(model_path, section) for section in sections]
-        logger.debug(f"Labels: {labels}")
-        logger.debug(f"num labels: {len(labels)}")
-        prediction = any(labels)
+        feature_len = config["feature_len"]
+        if len(feature_freq_vector) == feature_len:
+            logger.debug("Only one clip.")
+            prediction, confidence = cnn_classifier(model_path, feature_freq_vector)
+        else:
+            feature_freq = 1000 / config["frame_step"]
+            min_overlap = int(2 * config["frame_len"] / 1000 * feature_freq)
+            sections = sectioning(feature_freq_vector, feature_len, min_overlap)
+            labels_confidences = [cnn_classifier(model_path, section) for section in sections]
+            labels, confidences = zip(*labels_confidences)
+            prediction = any(labels)
+            if prediction:
+                confidence = max(conf for label, conf in labels_confidences if label)
+            else:
+                confidence = max(
+                    conf for label, conf in labels_confidences if not label
+                )  # redundant
+            logger.debug(f"Labels: {labels}")
+            logger.debug(f"num labels: {len(labels)}")
+
     elif classifier == "cnn-bilstm":
         logger.warning("Using CNN-BiLSTM classifier with unoptimized feature preprocessing.")
         model_path = MODELS_DIR / "cnn_bilstm_alldata_model.pth"
         spatial_scaler_path = MODELS_DIR / "cnn_bilstm_alldata_spatial_scaler.pkl"
         temporal_scaler_path = MODELS_DIR / "cnn_bilstm_alldata_temporal_scaler.pkl"
-        prediction = bilstm_classifier(
+        prediction, confidence = bilstm_classifier(
             feature_freq_vector, config, model_path, spatial_scaler_path, temporal_scaler_path
         )
 
     # Output
     if prediction:
-        print(Panel(Text(text="Tampered", style="bold red"), expand=False))
+        print(
+            Panel(
+                Text(text=f"Tampered\n({confidence*100:.1f}% Confidence)", style="bold red"),
+                expand=False,
+            )
+        )
     else:
-        print(Panel(Text(text="Authentic", style="bold green"), expand=False))
+        print(
+            Panel(
+                Text(text=f"Authentic\n({confidence*100:.1f}% Confidence)", style="bold green"),
+                expand=False,
+            )
+        )
 
     if config["create_report"]:
         report(config, labels)
@@ -150,6 +173,13 @@ def example_synth():
     cut_info = {
         auth_path.name: {"start": start_ind / sample_freq, "cutlen": cutlen_samples / sample_freq}
     }
+    try:
+        with open(cut_info_path, "r") as f:
+            prev = yaml.safe_load(f)
+            prev.update(cut_info)
+            cut_info = prev
+    except FileNotFoundError:
+        pass
     with open(cut_info_path, "w") as f:
         yaml.dump(cut_info, f)
     print(
@@ -158,7 +188,7 @@ def example_synth():
 
 
 @app.command()
-def example_whu():
+def example_whuref():
     """Creates example audio files of WHU_ref data in the current directory.
     One authentic and one tampered."""
 
@@ -193,8 +223,10 @@ def example_whu():
     max_cutlen_samples = max_cutlen * sample_freq
 
     # Save the authentic file
-    wavfile.write(auth_path, sample_freq, sig[:audiolen_samples])
+    auth_sig = sig[:audiolen_samples]
+    wavfile.write(auth_path, sample_freq, auth_sig)
     logger.info(f"Saved authentic file: {auth_path.absolute()}")
+    logger.info(f"Auth hash: {sha256(auth_sig).hexdigest()}")
 
     # Tamper the file
     sig = sig[: audiolen_samples + max_cutlen_samples]
@@ -203,11 +235,19 @@ def example_whu():
     tamp_sig = np.delete(sig.copy(), slice(start_ind, start_ind + cutlen_samples))
     wavfile.write(tamp_path, sample_freq, tamp_sig)
     logger.info(f"Saved tampered file: {tamp_path.absolute()}")
+    logger.debug(f"Tamp hash: {sha256(tamp_sig).hexdigest()}")
 
     cut_info_path = EXAMPLE_OUTDIR / "cut_info.yml"
     cut_info = {
         auth_path.name: {"start": start_ind / sample_freq, "cutlen": cutlen_samples / sample_freq}
     }
+    try:
+        with open(cut_info_path, "r") as f:
+            prev = yaml.safe_load(f)
+            prev.update(cut_info)
+            cut_info = prev
+    except FileNotFoundError:
+        pass
     with open(cut_info_path, "w") as f:
         yaml.dump(cut_info, f)
     print(
