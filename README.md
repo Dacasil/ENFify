@@ -56,8 +56,8 @@ The tool contains commands for generating sample audio files. When the correspon
 ```bash
 mkdir ~/example_files_enfify
 cd ~/example_files_enfify
-enfify create-whuref
-enfify create-synthetic
+enfify example-whuref
+enfify example-synthetic
 ```
 The `whuref-*.wav` files there are sourced from the [ENF-WHU-Dataset](https://github.com/ghua-ac/ENF-WHU-Dataset/tree/78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset/H1_ref). These files include power grid data and therefore have minimal noise.
 
