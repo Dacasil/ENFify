@@ -70,10 +70,10 @@ The tool was also tested on a real-world audio dataset named [Carioca](https://d
 To test the tool on a file, enter the following with the path to the audio file, e.g. `whuref_tamp.wav`:
 
 ```bash
-enfify detect whuref_auth.wav
-enfify detect whuref_tamp.wav
-enfify detect synthetic_auth.wav
-enfify detect synthetic_tamp.wav
+enfify detect whuref-auth.wav
+enfify detect whuref-tamp.wav
+enfify detect synthetic-auth.wav
+enfify detect synthetic-tamp.wav
 ```
 
 This classifies the file in the command line and in the default configuration also generates a report with the audio features for more insight in the current directory.
