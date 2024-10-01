@@ -21,7 +21,7 @@ downsample_per_enf: 20  # Gets multiplied by nominal_enf to obtain the downsampl
 # ENF ESTIMATION
 # Bandpass Filter Configuration
 bandpass_delta: .5  # Hz # Added and subtracted from nominal_enf to get the bandpass filter range.
-bandpass_order: 1 # TODO: Explain
+bandpass_order: 1000 # Defines how sharply the filter transistions between passing and attenuating.
 
 # FEATURE CALCULATION
 # Framing

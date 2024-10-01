@@ -6,8 +6,8 @@ from enfify.feature_calculation import framing, freq_estimation_DFT1
 from enfify.phase_extraction import phase_estimation_DFT1
 from enfify.preprocessing import (
     butterworth_bandpass_filter,
-    downsample_ffmpeg,
     fir_bandpass_filter,
+    downsample_scipy_new,
 )
 
 
@@ -32,13 +32,13 @@ def feature_freq_pipeline(sig, sample_freq, config):
 
     # Downsampling
     downsample_freq = config["downsample_per_enf"] * config["nominal_enf"]
-    sig, sample_freq = downsample_ffmpeg(sig, sample_freq, downsample_freq)
+    sig, sample_freq = downsample_scipy_new(sig, sample_freq, downsample_freq)
 
     # Bandpass Filter
     lowcut = config["nominal_enf"] - config["bandpass_delta"]
     highcut = config["nominal_enf"] + config["bandpass_delta"]
     bandpass_order = config["bandpass_order"]
-    sig = butterworth_bandpass_filter(sig, sample_freq, lowcut, highcut, bandpass_order)
+    sig = fir_bandpass_filter(sig, sample_freq, lowcut, highcut, bandpass_order)
 
     # Variational Mode Decomposition
     VMD_config = config["VMD"]
@@ -93,13 +93,13 @@ def feature_freq_pipeline(sig, sample_freq, config):
 def feature_phase_pipeline(sig, sample_freq, config):
     # Downsampling
     downsample_freq = config["downsample_per_enf"] * config["nominal_enf"]
-    sig, sample_freq = downsample_ffmpeg(sig, sample_freq, downsample_freq)
+    sig, sample_freq = downsample_scipy_new(sig, sample_freq, downsample_freq)
 
     # Bandpass Filter
     lowcut = config["nominal_enf"] - config["bandpass_delta"]
     highcut = config["nominal_enf"] + config["bandpass_delta"]
     bandpass_order = config["bandpass_order"]
-    sig = butterworth_bandpass_filter(sig, sample_freq, lowcut, highcut, bandpass_order)
+    sig = fir_bandpass_filter(sig, sample_freq, lowcut, highcut, bandpass_order)
 
     # Frame Splitting
     window_type = config["window_type"]
@@ -126,7 +126,7 @@ def feature_phase_pipeline(sig, sample_freq, config):
     return times, phases
 
 
-# TODO: Remove when not needed
+# TODO:
 if __name__ == "__main__":
     from pathlib import Path
 
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     # plot_feature_freq(feature_freq, path.name)
 
 
-# TODO: Remove when not needed
+# TODO:
 # def feature_freq_bilstm_pipeline(sig, sample_freq, config):
 #     """
 #     Processes an audio signal to extract frequency features for a CNN BiLSTM pipeline.
