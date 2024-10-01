@@ -56,8 +56,8 @@ The tool contains commands for generating sample audio files. When the correspon
 ```bash
 mkdir ~/example_files_enfify
 cd ~/example_files_enfify
-enfify create-whuref
-enfify create-synthetic
+enfify example-whuref
+enfify example-synthetic
 ```
 The `whuref-*.wav` files there are sourced from the [ENF-WHU-Dataset](https://github.com/ghua-ac/ENF-WHU-Dataset/tree/78ed7f3784949f769f291fc1cb94acd10da6322f/ENF-WHU-Dataset/H1_ref). These files include power grid data and therefore have minimal noise.
 
@@ -70,10 +70,10 @@ The tool was also tested on a real-world audio dataset named [Carioca](https://d
 To test the tool on a file, enter the following with the path to the audio file, e.g. `whuref_tamp.wav`:
 
 ```bash
-enfify detect whuref_auth.wav
-enfify detect whuref_tamp.wav
-enfify detect synthetic_auth.wav
-enfify detect synthetic_tamp.wav
+enfify detect whuref-auth.wav
+enfify detect whuref-tamp.wav
+enfify detect synthetic-auth.wav
+enfify detect synthetic-tamp.wav
 ```
 
 This classifies the file in the command line and in the default configuration also generates a report with the audio features for more insight in the current directory.
