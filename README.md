@@ -140,3 +140,8 @@ DOI: https://doi.org/10.1109/TIFS.2010.2051270*
 We would like to thank the authors of these papers for their valuable contributions, which served as a foundation for our implementation.
 
 --------
+
+## My Top Languages
+
+<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=Dacasil&hide=Jupyter%20Notebook" />
+
