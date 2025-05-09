@@ -141,7 +141,3 @@ We would like to thank the authors of these papers for their valuable contributi
 
 --------
 
-## My Top Languages
-
-<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=Dacasil&hide=Jupyter%20Notebook" />
-
